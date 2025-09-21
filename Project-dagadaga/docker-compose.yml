@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  payment-service-mock:
+    build: ./blockchain
+    ports:
+      - "8000:8000"
+    environment:
+      - PAYMENT_SERVICE_HOST=0.0.0.0
+      - PAYMENT_SERVICE_PORT=8000
+      - MOCK_MODE=true
+      - MOCK_CONFIRMATION_DELAY=30
+    volumes:
+      - ./blockchain/src:/app/src
+    networks:
+      - dagadaga-network
+
+  payment-service-real:
+    build: ./blockchain
+    ports:
+      - "8001:8000"
+    environment:
+      - PAYMENT_SERVICE_HOST=0.0.0.0
+      - PAYMENT_SERVICE_PORT=8000
+      - MOCK_MODE=false
+      - CARDANO_NETWORK=preprod
+      - BLOCKFROST_PROJECT_ID=${BLOCKFROST_PROJECT_ID}
+    volumes:
+      - ./blockchain/src:/app/src
+      - ./blockchain/config:/app/config
+    networks:
+      - dagadaga-network
+    depends_on:
+      - payment-service-mock
+
+networks:
+  dagadaga-network:
+    driver: bridge

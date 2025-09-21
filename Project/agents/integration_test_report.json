@@ -1,0 +1,66 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed": 5,
+    "failed": 4,
+    "success_rate": "55.6%",
+    "duration_seconds": 30.88
+  },
+  "results": [
+    {
+      "test_name": "Agent A Health",
+      "success": true,
+      "details": "Service running: Agent A - Buyer Logic",
+      "timestamp": "2025-09-21T15:23:56.007366"
+    },
+    {
+      "test_name": "Router Connectivity",
+      "success": false,
+      "details": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002BF539E3110>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
+      "timestamp": "2025-09-21T15:24:00.124706"
+    },
+    {
+      "test_name": "Router Status via Agent A",
+      "success": false,
+      "details": "'str' object has no attribute 'get'",
+      "timestamp": "2025-09-21T15:24:06.268838"
+    },
+    {
+      "test_name": "Offer Creation",
+      "success": true,
+      "details": "Offer created: 32c7aa8f-9f65-447e-8cce-ea4fc4d7d621",
+      "timestamp": "2025-09-21T15:24:08.333617"
+    },
+    {
+      "test_name": "Direct Router Communication",
+      "success": false,
+      "details": "HTTPConnectionPool(host='localhost', port=5000): Max retries exceeded with url: /send_offer (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002BF53AE4770>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))",
+      "timestamp": "2025-09-21T15:24:12.443651"
+    },
+    {
+      "test_name": "Router Integration",
+      "success": false,
+      "details": "HTTP 500",
+      "timestamp": "2025-09-21T15:24:18.572781"
+    },
+    {
+      "test_name": "Performance Test",
+      "success": true,
+      "details": "10/10 requests successful",
+      "timestamp": "2025-09-21T15:24:20.735899"
+    },
+    {
+      "test_name": "Error Handling",
+      "success": true,
+      "details": "Handled invalid input gracefully: 200",
+      "timestamp": "2025-09-21T15:24:22.769376"
+    },
+    {
+      "test_name": "AWS Bedrock Fallback",
+      "success": true,
+      "details": "Bedrock mode: mock",
+      "timestamp": "2025-09-21T15:24:24.808077"
+    }
+  ],
+  "timestamp": "2025-09-21T15:24:24.809428"
+}

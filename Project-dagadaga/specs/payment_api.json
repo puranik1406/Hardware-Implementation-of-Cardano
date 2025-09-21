@@ -1,0 +1,254 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Arduino-to-Cardano Payment Service API",
+    "description": "Blockchain payment service for AI agents with Arduino integration",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Blockchain Team",
+      "email": "blockchain@team.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server (Mock Mode)"
+    },
+    {
+      "url": "http://localhost:8001", 
+      "description": "Local development server (Real Blockchain)"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Health check and service info",
+        "responses": {
+          "200": {
+            "description": "Service status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {"type": "string"},
+                    "mode": {"type": "string", "enum": ["mock", "real"]},
+                    "status": {"type": "string"},
+                    "version": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/send_payment": {
+      "post": {
+        "summary": "Initiate a payment transaction",
+        "description": "Send ADA from one address to another. Returns job_id for tracking.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              },
+              "examples": {
+                "basic_payment": {
+                  "summary": "Basic ADA transfer",
+                  "value": {
+                    "from_address": "addr_test1qq9f4n4zk8gx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4z",
+                    "to_address": "addr_test1vr5f4n4zk8gx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4z",
+                    "amount": 1000000
+                  }
+                },
+                "payment_with_metadata": {
+                  "summary": "Payment with custom metadata",
+                  "value": {
+                    "from_address": "addr_test1qq9f4n4zk8gx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4z",
+                    "to_address": "addr_test1vr5f4n4zk8gx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4z",
+                    "amount": 5000000,
+                    "metadata": {
+                      "agent": "Agent_A",
+                      "task": "AI_triggered_payment",
+                      "arduino_signal": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment initiated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/tx_status/{job_id}": {
+      "get": {
+        "summary": "Get transaction status",
+        "description": "Check the confirmation status of a payment by job_id",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Job ID returned from send_payment"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transaction status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        }
+      }
+    },
+    "/wallet/{address}/balance": {
+      "get": {
+        "summary": "Get wallet balance",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Cardano wallet address"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Wallet balance information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "address": {"type": "string"},
+                    "balance_lovelace": {"type": "integer"},
+                    "balance_ada": {"type": "number"},
+                    "utxos_count": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PaymentRequest": {
+        "type": "object",
+        "required": ["from_address", "to_address", "amount"],
+        "properties": {
+          "from_address": {
+            "type": "string",
+            "description": "Source wallet address (Cardano address format)",
+            "pattern": "^(addr1|addr_test).*"
+          },
+          "to_address": {
+            "type": "string", 
+            "description": "Destination wallet address (Cardano address format)",
+            "pattern": "^(addr1|addr_test).*"
+          },
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Amount in lovelace (1 ADA = 1,000,000 lovelace)"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Optional transaction metadata"
+          }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Unique job identifier for tracking"
+          },
+          "tx_hash": {
+            "type": "string",
+            "description": "Transaction hash (empty in mock mode)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "failed"],
+            "description": "Initial transaction status"
+          },
+          "estimated_confirmation_time": {
+            "type": "integer",
+            "description": "Estimated seconds until confirmation"
+          }
+        }
+      },
+      "TransactionStatus": {
+        "type": "object",
+        "properties": {
+          "job_id": {"type": "string"},
+          "tx_hash": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": ["pending", "confirmed", "failed", "cancelled"]
+          },
+          "confirmations": {
+            "type": "integer",
+            "description": "Number of block confirmations"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "block_height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "fee": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Transaction fee in lovelace"
+          }
+        }
+      }
+    }
+  }
+}

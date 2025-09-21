@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "Payment Offer Schema",
+  "description": "Schema for payment offers sent from Agent A to Router",
+  "required": ["offer_id", "from_agent", "to_agent", "amount", "currency", "timestamp", "description"],
+  "properties": {
+    "offer_id": {
+      "type": "string",
+      "description": "Unique identifier for the offer",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "from_agent": {
+      "type": "string",
+      "description": "ID of the agent sending the offer",
+      "enum": ["agent_a", "agent_b"]
+    },
+    "to_agent": {
+      "type": "string", 
+      "description": "ID of the agent receiving the offer",
+      "enum": ["agent_a", "agent_b"]
+    },
+    "amount": {
+      "type": "number",
+      "description": "Payment amount",
+      "minimum": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency code",
+      "enum": ["ADA", "USD", "EUR", "BTC"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when offer was created"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of the payment",
+      "maxLength": 500
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for the offer",
+      "properties": {
+        "arduino_trigger": {
+          "type": "boolean",
+          "description": "Whether this offer was triggered by Arduino button press"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "default": "medium"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional expiration time for the offer"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+2025-09-21 17:15:37,899 - INFO - Starting Flask server on port 5000
+2025-09-21 17:15:37,978 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.10.11.193:5000
+2025-09-21 17:15:37,978 - INFO - [33mPress CTRL+C to quit[0m
+2025-09-21 17:16:12,431 - INFO - 127.0.0.1 - - [21/Sep/2025 17:16:12] "GET /send_request HTTP/1.1" 200 -
+2025-09-21 17:16:23,131 - INFO - 127.0.0.1 - - [21/Sep/2025 17:16:23] "GET / HTTP/1.1" 200 -
+2025-09-21 17:16:38,062 - INFO - 127.0.0.1 - - [21/Sep/2025 17:16:38] "GET /send_request HTTP/1.1" 200 -
+2025-09-21 17:19:17,180 - INFO - Starting Flask server on port 5000
+2025-09-21 17:19:17,223 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.10.11.193:5000
+2025-09-21 17:19:17,224 - INFO - [33mPress CTRL+C to quit[0m
+2025-09-21 17:20:10,244 - INFO - 127.0.0.1 - - [21/Sep/2025 17:20:10] "GET /send_request HTTP/1.1" 200 -
+2025-09-21 17:20:10,329 - INFO - 127.0.0.1 - - [21/Sep/2025 17:20:10] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
