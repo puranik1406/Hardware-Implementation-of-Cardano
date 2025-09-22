@@ -1,34 +1,75 @@
-# Unified Arduino-to-Cardano AI Agents System Requirements
-# Combines dependencies from both Project and Project-dagadaga
-
-# Core web framework
-flask==2.3.3
+# Core FastAPI and Flask dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+flask==3.0.0
 flask-cors==4.0.0
 
-# HTTP requests
+# HTTP client libraries
 requests==2.31.0
+httpx==0.25.2
 
-# Optional: FastAPI dependencies for enhanced payment service
-fastapi==0.104.1
-uvicorn==0.24.0
+# Data validation and parsing
 pydantic==2.5.0
 
 # Environment management
 python-dotenv==1.0.0
 
-# HTTP client for async operations
-httpx==0.25.2
+# Serial communication for Arduino
+pyserial==3.5
 
-# Development and testing (optional)
+# Blockchain and crypto libraries
+blockfrost-python==0.6.0
+pycardano==0.15.1
+cbor2==5.4.6
+
+# Background task processing
+celery==5.3.4
+redis==5.0.1
+
+# Logging and monitoring
+structlog==23.2.0
+prometheus-client==0.19.0
+
+# Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
+pytest-mock==3.12.0
 
-# Blockchain dependencies (optional for full blockchain integration)
-# pycardano==0.11.0
-# blockfrost-python==0.5.4
+# Development tools
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
 
-# Security (optional)
-# cryptography==41.0.8
+# Optional AI/ML libraries (if using real Bedrock)
+boto3==1.34.0
+botocore==1.34.0
 
-# Logging and monitoring (optional)
-# structlog==23.2.0
+# Data processing
+pandas==2.1.4
+numpy==1.24.3
+
+# Configuration management
+pyyaml==6.0.1
+toml==0.10.2
+
+# Time handling
+python-dateutil==2.8.2
+pytz==2023.3
+
+# JSON schema validation
+jsonschema==4.20.0
+
+# Async support
+aiofiles==23.2.0
+aiohttp==3.9.1
+
+# Security
+cryptography==41.0.8
+passlib==1.7.4
+
+# Hardware interface (optional)
+gpiozero==1.6.2
+
+# Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==1.3.0

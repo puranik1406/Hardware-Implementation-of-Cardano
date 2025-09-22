@@ -1,723 +1,325 @@
 #!/usr/bin/env python3
 """
-Unified Arduino-to-Cardano AI Agents System
-Integrates Project wallet address generation with Project-dagadaga blockchain execution
+Cardano-Arduino-AI System Launcher
+Main entry point for the complete hackathon system
 """
 
+import asyncio
+import logging
 import os
+import signal
+import subprocess
 import sys
 import time
-import threading
-import subprocess
-import json
-import uuid
-import requests
-from datetime import datetime
-from flask import Flask, request, jsonify, render_template_string
-from flask_cors import CORS
-import logging
+from typing import List, Dict, Any
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('unified_system.log'),
-        logging.StreamHandler()
-    ]
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
-WALLET_ADDRESS = "addr_test1qpxuephf94vaxsw5fce26x78z8qms8qv4sykannc5m2szvelt7hxg6m564ncm4mc4qn6dykpf2ah85l77xwyldngeuvsv7nfdp"
-DEFAULT_AMOUNT_ADA = 1.0  # 1 ADA
-PORT = 5000
-PAYMENT_SERVICE_PORT = 8000
-PAYMENT_SERVICE_URL = f"http://localhost:{PAYMENT_SERVICE_PORT}"
-
-# Flask app setup
-app = Flask(__name__)
-CORS(app)
-
-# In-memory storage for transactions
-transactions_store = {}
-payment_service_process = None
-
-# HTML template for the web interface
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unified Arduino-to-Cardano AI Agents</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
-        }
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .status-card {
-            background: rgba(255, 255, 255, 0.15);
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border-left: 4px solid #4CAF50;
-        }
-        .transaction-card {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            margin: 10px 0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .address {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 5px;
-            word-break: break-all;
-            margin: 10px 0;
-        }
-        .hash {
-            font-family: 'Courier New', monospace;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px;
-            border-radius: 5px;
-            word-break: break-all;
-            margin: 10px 0;
-            color: #90EE90;
-        }
-        button {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 5px;
-            transition: all 0.3s ease;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top: 4px solid #fff;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .success { color: #90EE90; }
-        .error { color: #ffcccb; }
-        .info { color: #87CEEB; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 Arduino-to-Cardano AI Agents</h1>
-        
-        <div class="status-card">
-            <h3>System Status</h3>
-            <p><strong>Server:</strong> <span class="success">Running on Port {{ port }}</span></p>
-            <p><strong>Wallet Address:</strong></p>
-            <div class="address">{{ wallet_address }}</div>
-            <p><strong>Time:</strong> {{ timestamp }}</p>
-        </div>
-
-        <div style="text-align: center; margin: 30px 0;">
-            <button onclick="initiateTransaction()">🔄 Initiate Transaction</button>
-            <button onclick="refreshStatus()">📡 Refresh Status</button>
-        </div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Processing transaction...</p>
-        </div>
-
-        <div id="results"></div>
-    </div>
-
-    <script>
-        async function initiateTransaction() {
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
-            
-            loading.style.display = 'block';
-            results.innerHTML = '';
-            
-            try {
-                // Step 1: Get transaction address
-                const addressResponse = await fetch('/send_request');
-                const addressData = await addressResponse.json();
-                
-                if (addressData.status === 'success') {
-                    results.innerHTML += `
-                        <div class="transaction-card">
-                            <h4>✅ Step 1: Transaction Address Generated</h4>
-                            <p><strong>Transaction ID:</strong> ${addressData.transaction_id}</p>
-                            <p><strong>Amount:</strong> ${addressData.amount_ada} ADA</p>
-                            <p><strong>Address:</strong></p>
-                            <div class="address">${addressData.transaction_address}</div>
-                        </div>
-                    `;
-                    
-                    // Step 2: Execute blockchain transaction
-                    results.innerHTML += `
-                        <div class="transaction-card">
-                            <h4>🔄 Step 2: Executing Blockchain Transaction...</h4>
-                            <p class="info">Sending to payment service...</p>
-                        </div>
-                    `;
-                    
-                    const executeResponse = await fetch('/execute_transaction', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            transaction_id: addressData.transaction_id,
-                            amount: addressData.amount_ada
-                        })
-                    });
-                    
-                    const executeData = await executeResponse.json();
-                    
-                    if (executeData.status === 'success') {
-                        const realBlockchain = executeData.real_blockchain ? '🌐 Real Cardano Blockchain' : '🔧 Test Network';
-                        const txHashDisplay = executeData.tx_hash === 'pending' ? 
-                            '<span class="info">Transaction hash will be available after submission</span>' : 
-                            executeData.tx_hash;
-                        
-                        results.innerHTML += `
-                            <div class="transaction-card">
-                                <h4>✅ Step 2: Real Blockchain Transaction Executed</h4>
-                                <p><strong>Network:</strong> ${realBlockchain}</p>
-                                <p><strong>Transaction Hash:</strong></p>
-                                <div class="hash">${txHashDisplay}</div>
-                                <p><strong>Job ID:</strong> ${executeData.job_id}</p>
-                                ${executeData.masumi_tx_id ? `<p><strong>Masumi TX ID:</strong> ${executeData.masumi_tx_id}</p>` : ''}
-                                <p><strong>Status:</strong> <span class="success">${executeData.transaction_status}</span></p>
-                                <p><strong>Confirmation Time:</strong> ~${executeData.estimated_confirmation_time} seconds</p>
-                                <p class="info">💡 This is a real Cardano transaction on preprod testnet</p>
-                                ${executeData.tx_hash !== 'pending' ? 
-                                    `<p><strong>Explorer:</strong> <a href="https://preprod.cardanoscan.io/transaction/${executeData.tx_hash}" target="_blank" style="color: #87CEEB;">View on CardanoScan</a></p>` : 
-                                    '<p class="info">🔄 Transaction hash will appear once submitted to network</p>'
-                                }
-                            </div>
-                        `;
-                    } else {
-                        results.innerHTML += `
-                            <div class="transaction-card">
-                                <h4>❌ Step 2: Transaction Failed</h4>
-                                <p class="error">${executeData.message}</p>
-                            </div>
-                        `;
-                    }
-                } else {
-                    results.innerHTML = `
-                        <div class="transaction-card">
-                            <h4>❌ Failed to Generate Transaction Address</h4>
-                            <p class="error">${addressData.message}</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                results.innerHTML = `
-                    <div class="transaction-card">
-                        <h4>❌ System Error</h4>
-                        <p class="error">Error: ${error.message}</p>
-                    </div>
-                `;
-            } finally {
-                loading.style.display = 'none';
-            }
-        }
-        
-        async function refreshStatus() {
-            try {
-                const response = await fetch('/');
-                const data = await response.json();
-                location.reload();
-            } catch (error) {
-                console.error('Failed to refresh status:', error);
-            }
-        }
-        
-        // Auto-refresh every 30 seconds
-        setInterval(refreshStatus, 30000);
-    </script>
-</body>
-</html>
-"""
-
-class UnifiedPaymentSystem:
-    """Unified system that integrates address generation with blockchain execution"""
+class SystemLauncher:
+    """Main system launcher and coordinator"""
     
     def __init__(self):
-        self.wallet_address = WALLET_ADDRESS
-        self.payment_service_running = False
-        
-    def create_transaction_offer(self, amount_ada=DEFAULT_AMOUNT_ADA):
-        """Create a transaction offer with wallet address"""
-        transaction_id = f"tx_{uuid.uuid4().hex[:8]}"
-        amount_lovelace = int(amount_ada * 1000000)
-        
-        transaction_data = {
-            "transaction_id": transaction_id,
-            "wallet_address": self.wallet_address,
-            "amount_ada": amount_ada,
-            "amount_lovelace": amount_lovelace,
-            "currency": "ADA",
-            "status": "ready",
-            "timestamp": datetime.now().isoformat(),
-            "action": "send_to_wallet"
+        self.processes: List[subprocess.Popen] = []
+        self.services = {
+            "payment_service": {
+                "cmd": [sys.executable, "src/blockchain/payment_service.py"],
+                "port": int(os.getenv("PAYMENT_SERVICE_PORT", "8000")),
+                "health_path": "/",
+                "required": True
+            },
+            "router": {
+                "cmd": [sys.executable, "src/agents/router.py"],
+                "port": int(os.getenv("ROUTER_PORT", "8003")),
+                "health_path": "/",
+                "required": True
+            },
+            "agent_a": {
+                "cmd": [sys.executable, "src/agents/agent_a.py"],
+                "port": int(os.getenv("AGENT_A_PORT", "8001")),
+                "health_path": "/",
+                "required": True
+            },
+            "agent_b": {
+                "cmd": [sys.executable, "src/agents/agent_b.py"],
+                "port": int(os.getenv("AGENT_B_PORT", "8002")),
+                "health_path": "/",
+                "required": True
+            }
         }
         
-        # Store transaction
-        transactions_store[transaction_id] = transaction_data
+        # Setup signal handlers
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+    
+    def signal_handler(self, signum, frame):
+        """Handle shutdown signals"""
+        logger.info(f"Received signal {signum}, shutting down...")
+        self.shutdown()
+        sys.exit(0)
+    
+    def check_dependencies(self) -> bool:
+        """Check if all required dependencies are installed"""
+        logger.info("Checking dependencies...")
         
-        logger.info(f"Created transaction: {amount_ada} ADA -> {self.wallet_address}")
-        return transaction_data
+        required_modules = [
+            "fastapi", "uvicorn", "flask", "requests", 
+            "pydantic", "python-dotenv", "pyserial"
+        ]
+        
+        missing_modules = []
+        for module in required_modules:
+            try:
+                __import__(module.replace("-", "_"))
+            except ImportError:
+                missing_modules.append(module)
+        
+        if missing_modules:
+            logger.error(f"Missing required modules: {missing_modules}")
+            logger.error("Please run: pip install -r requirements.txt")
+            return False
+        
+        logger.info("✅ All dependencies satisfied")
+        return True
     
-    def start_payment_service(self):
-        """Start the real blockchain payment service in background"""
-        try:
-            # Change to the Project-dagadaga directory
-            payment_dir = "c:\\Users\\dhwin\\project-unifiedcardonahackathon\\Project-dagadaga\\blockchain\\src"
+    def check_ports(self) -> bool:
+        """Check if required ports are available"""
+        import socket
+        
+        logger.info("Checking port availability...")
+        
+        for service_name, config in self.services.items():
+            port = config["port"]
             
-            if os.path.exists(payment_dir):
-                logger.info(f"Starting REAL blockchain payment service from {payment_dir}")
-                # Start the real payment service (not mock)
-                process = subprocess.Popen([
-                    sys.executable, "real_payment_service.py"
-                ], 
-                cwd=payment_dir,
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                result = sock.connect_ex(("localhost", port))
+                if result == 0:
+                    logger.error(f"Port {port} already in use (required for {service_name})")
+                    return False
+        
+        logger.info("✅ All required ports available")
+        return True
+    
+    def start_service(self, service_name: str, config: Dict[str, Any]) -> subprocess.Popen:
+        """Start a single service"""
+        logger.info(f"Starting {service_name} on port {config['port']}...")
+        
+        try:
+            process = subprocess.Popen(
+                config["cmd"],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-                )
-                
-                # Give it more time to start (real blockchain connections take longer)
-                time.sleep(8)
-                
-                # Check if service is running
-                try:
-                    response = requests.get(f"{PAYMENT_SERVICE_URL}/", timeout=10)
-                    if response.status_code == 200:
-                        service_info = response.json()
-                        if service_info.get("mode") == "real":
-                            self.payment_service_running = True
-                            logger.info("✅ Real blockchain payment service started successfully")
-                            logger.info(f"🌐 Connected to {service_info.get('network', 'unknown')} network")
-                            logger.info(f"🔗 Blockfrost: {service_info.get('clients', {}).get('blockfrost', 'unknown')}")
-                            logger.info(f"🔗 Masumi: {service_info.get('clients', {}).get('masumi', 'unknown')}")
-                            return process
-                        else:
-                            logger.error("❌ Payment service started in wrong mode (not real)")
-                    else:
-                        logger.error("❌ Payment service not responding correctly")
-                except requests.exceptions.RequestException as e:
-                    logger.error(f"❌ Payment service connection failed: {e}")
-                    
-            else:
-                logger.error(f"❌ Payment service directory not found: {payment_dir}")
-                
-        except Exception as e:
-            logger.error(f"❌ Failed to start real payment service: {e}")
-            
-        return None
-    
-    def execute_blockchain_transaction(self, transaction_id, amount_ada):
-        """Execute the actual blockchain transaction using real Cardano network"""
-        try:
-            if not self.payment_service_running:
-                return {
-                    "status": "error",
-                    "message": "Real blockchain payment service not available"
-                }
-            
-            # For real transactions, we need a valid sender address with UTXOs
-            # Using a test wallet address (this should be configurable)
-            sender_address = os.getenv("SENDER_WALLET_ADDRESS", "addr_test1qq9f4n4zk8gx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4zx4z")
-            
-            # Prepare real payment request
-            payment_data = {
-                "from_address": sender_address,
-                "to_address": self.wallet_address,
-                "amount": int(amount_ada * 1000000),  # Convert to lovelace
-                "metadata": {
-                    "transaction_id": transaction_id,
-                    "source": "unified_system",
-                    "timestamp": datetime.now().isoformat(),
-                    "type": "real_blockchain_transaction",
-                    "amount_ada": amount_ada
-                }
-            }
-            
-            logger.info(f"🔗 Executing real blockchain transaction: {amount_ada} ADA")
-            logger.info(f"📤 From: {sender_address}")
-            logger.info(f"📥 To: {self.wallet_address}")
-            
-            # Send to real payment service
-            response = requests.post(
-                f"{PAYMENT_SERVICE_URL}/send_payment",
-                json=payment_data,
-                timeout=60  # Longer timeout for real blockchain operations
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                bufsize=1
             )
             
-            if response.status_code == 200:
-                result = response.json()
-                
-                # Update transaction store with real blockchain data
-                if transaction_id in transactions_store:
-                    transactions_store[transaction_id].update({
-                        "blockchain_job_id": result["job_id"],
-                        "masumi_tx_id": result.get("masumi_tx_id"),
-                        "tx_hash": result.get("tx_hash"),
-                        "blockchain_status": result["status"],
-                        "executed_at": datetime.now().isoformat(),
-                        "real_blockchain": True,
-                        "estimated_confirmation_time": result.get("estimated_confirmation_time", 300)
-                    })
-                
-                logger.info(f"✅ Real blockchain transaction initiated!")
-                logger.info(f"🆔 Job ID: {result['job_id']}")
-                if result.get("tx_hash"):
-                    logger.info(f"🔗 Transaction Hash: {result['tx_hash']}")
-                logger.info(f"⏱️ Status: {result['status']}")
-                
-                return {
-                    "status": "success",
-                    "tx_hash": result.get("tx_hash", "pending"),
-                    "job_id": result["job_id"],
-                    "masumi_tx_id": result.get("masumi_tx_id"),
-                    "transaction_status": result["status"],
-                    "estimated_confirmation_time": result.get("estimated_confirmation_time", 300),
-                    "message": "Real blockchain transaction initiated",
-                    "network": "cardano-preprod",
-                    "real_blockchain": True
-                }
+            # Give the service a moment to start
+            time.sleep(2)
+            
+            if process.poll() is None:
+                logger.info(f"✅ {service_name} started successfully (PID: {process.pid})")
+                return process
             else:
-                error_detail = "Unknown error"
-                try:
-                    error_response = response.json()
-                    error_detail = error_response.get("detail", str(error_response))
-                except:
-                    error_detail = response.text
-                    
-                logger.error(f"❌ Real payment service error: {response.status_code} - {error_detail}")
-                return {
-                    "status": "error",
-                    "message": f"Real payment service error: {response.status_code} - {error_detail}"
-                }
+                stdout, stderr = process.communicate()
+                logger.error(f"❌ {service_name} failed to start")
+                logger.error(f"STDOUT: {stdout}")
+                logger.error(f"STDERR: {stderr}")
+                return None
                 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Connection to real payment service failed: {e}")
-            return {
-                "status": "error",
-                "message": f"Connection to real payment service failed: {str(e)}"
-            }
         except Exception as e:
-            logger.error(f"❌ Real blockchain transaction failed: {e}")
-            return {
-                "status": "error",
-                "message": f"Real blockchain transaction failed: {str(e)}"
-            }
-
-# Initialize unified system
-unified_system = UnifiedPaymentSystem()
-
-@app.route('/', methods=['GET'])
-def web_interface():
-    """Main web interface"""
-    return render_template_string(HTML_TEMPLATE, 
-                                wallet_address=WALLET_ADDRESS,
-                                port=PORT,
-                                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'service': 'Unified Arduino-to-Cardano System',
-        'status': 'running',
-        'wallet_address': WALLET_ADDRESS,
-        'payment_service_running': unified_system.payment_service_running,
-        'timestamp': datetime.now().isoformat(),
-        'transactions_count': len(transactions_store)
-    })
-
-@app.route('/send_request', methods=['GET', 'POST'])
-def send_request():
-    """Generate transaction address (Step 1)"""
-    try:
-        if request.method == 'GET':
-            # Display current wallet address and create a default transaction
-            transaction = unified_system.create_transaction_offer()
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Transaction address ready',
-                'transaction_address': transaction['wallet_address'],
-                'transaction_id': transaction['transaction_id'],
-                'amount_ada': transaction['amount_ada'],
-                'amount_lovelace': transaction['amount_lovelace'],
-                'timestamp': transaction['timestamp'],
-                'endpoint': f'localhost:{PORT}/send_request'
-            })
-        
-        elif request.method == 'POST':
-            # Handle POST requests with custom amount
-            data = request.get_json() or {}
-            amount_ada = data.get('amount', DEFAULT_AMOUNT_ADA)
-            
-            if isinstance(amount_ada, (int, float)) and amount_ada > 0:
-                transaction = unified_system.create_transaction_offer(amount_ada)
-                
-                return jsonify({
-                    'status': 'success',
-                    'message': 'Transaction created successfully',
-                    'transaction_address': transaction['wallet_address'],
-                    'transaction_id': transaction['transaction_id'],
-                    'amount_ada': transaction['amount_ada'],
-                    'amount_lovelace': transaction['amount_lovelace'],
-                    'timestamp': transaction['timestamp']
-                }), 201
-            else:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Invalid amount provided'
-                }), 400
+            logger.error(f"❌ Error starting {service_name}: {e}")
+            return None
     
-    except Exception as e:
-        logger.error(f"Error in send_request: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Internal server error: {str(e)}'
-        }), 500
-
-@app.route('/execute_transaction', methods=['POST'])
-def execute_transaction():
-    """Execute blockchain transaction (Step 2)"""
-    try:
-        data = request.get_json()
-        transaction_id = data.get('transaction_id')
-        amount_ada = data.get('amount', DEFAULT_AMOUNT_ADA)
+    def check_service_health(self, service_name: str, config: Dict[str, Any]) -> bool:
+        """Check if a service is healthy"""
+        import requests
         
-        if not transaction_id:
-            return jsonify({
-                'status': 'error',
-                'message': 'Transaction ID required'
-            }), 400
-        
-        # Execute the blockchain transaction
-        result = unified_system.execute_blockchain_transaction(transaction_id, amount_ada)
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"Error in execute_transaction: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Transaction execution error: {str(e)}'
-        }), 500
-
-@app.route('/transactions', methods=['GET'])
-def list_transactions():
-    """List all transactions"""
-    return jsonify({
-        'transactions': list(transactions_store.values()),
-        'count': len(transactions_store)
-    })
-
-@app.route('/transaction_status/<job_id>', methods=['GET'])
-def get_transaction_status(job_id):
-    """Get real-time transaction status from blockchain service"""
-    try:
-        if not unified_system.payment_service_running:
-            return jsonify({
-                'status': 'error',
-                'message': 'Payment service not available'
-            }), 503
-        
-        # Query the real payment service for status
-        response = requests.get(f"{PAYMENT_SERVICE_URL}/tx_status/{job_id}", timeout=10)
-        
-        if response.status_code == 200:
-            status_data = response.json()
+        try:
+            url = f"http://localhost:{config['port']}{config['health_path']}"
+            response = requests.get(url, timeout=5)
             
-            # Enhance status data with explorer links if transaction is confirmed
-            if status_data.get("tx_hash") and status_data.get("status") == "confirmed":
-                status_data["explorer_url"] = f"https://preprod.cardanoscan.io/transaction/{status_data['tx_hash']}"
-                status_data["blockfrost_url"] = f"https://preprod.blockfrost.io/api/v0/txs/{status_data['tx_hash']}"
+            if response.status_code == 200:
+                logger.info(f"✅ {service_name} health check passed")
+                return True
+            else:
+                logger.warning(f"⚠️ {service_name} health check failed: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            logger.warning(f"⚠️ {service_name} health check failed: {e}")
+            return False
+    
+    def start_all_services(self) -> bool:
+        """Start all services in the correct order"""
+        logger.info("🚀 Starting Cardano-Arduino-AI System...")
+        
+        # Start services in dependency order
+        service_order = ["payment_service", "router", "agent_a", "agent_b"]
+        
+        for service_name in service_order:
+            config = self.services[service_name]
+            process = self.start_service(service_name, config)
             
-            return jsonify(status_data)
+            if process:
+                self.processes.append(process)
+                
+                # Wait a bit more for critical services
+                if service_name in ["payment_service", "router"]:
+                    time.sleep(3)
+            else:
+                if config["required"]:
+                    logger.error(f"❌ Failed to start required service: {service_name}")
+                    return False
+                else:
+                    logger.warning(f"⚠️ Optional service {service_name} failed to start")
+        
+        # Health check all services
+        logger.info("Performing health checks...")
+        time.sleep(5)  # Give services time to fully initialize
+        
+        all_healthy = True
+        for service_name, config in self.services.items():
+            if not self.check_service_health(service_name, config):
+                if config["required"]:
+                    all_healthy = False
+        
+        if all_healthy:
+            logger.info("🎉 All services started successfully!")
+            self.display_system_info()
+            return True
         else:
-            return jsonify({
-                'status': 'error',
-                'message': f'Failed to get transaction status: {response.status_code}'
-            }), response.status_code
+            logger.error("❌ Some required services failed health checks")
+            return False
+    
+    def display_system_info(self):
+        """Display system information and access URLs"""
+        print("\n" + "="*60)
+        print("🎉 CARDANO-ARDUINO-AI SYSTEM READY!")
+        print("="*60)
+        print(f"🔗 Router (Traffic Controller): http://localhost:{os.getenv('ROUTER_PORT', '8003')}")
+        print(f"🤖 Agent A (Buyer AI): http://localhost:{os.getenv('AGENT_A_PORT', '8001')}")
+        print(f"🛒 Agent B (Seller): http://localhost:{os.getenv('AGENT_B_PORT', '8002')}")
+        print(f"💰 Payment Service: http://localhost:{os.getenv('PAYMENT_SERVICE_PORT', '8000')}")
+        print(f"📊 System Status: http://localhost:{os.getenv('ROUTER_PORT', '8003')}/status")
+        print("\n📱 Test Commands:")
+        print("• Test Payment: curl http://localhost:8000/test_payment")
+        print("• Arduino Trigger: curl -X POST http://localhost:8003/arduino_trigger -H 'Content-Type: application/json' -d '{\"amount\": 150, \"product\": \"Sensor Data\"}'")
+        print("• System Status: curl http://localhost:8003/status")
+        print("\n🔌 Arduino Connections:")
+        print(f"• Arduino A: {os.getenv('ARDUINO_A_PORT', 'COM3')} @ {os.getenv('ARDUINO_BAUD_RATE', '9600')} baud")
+        print(f"• Arduino B: {os.getenv('ARDUINO_B_PORT', 'COM4')} @ {os.getenv('ARDUINO_BAUD_RATE', '9600')} baud")
+        print("\n💡 Tips:")
+        print("• Upload arduino_a.ino to your first Arduino")
+        print("• Upload arduino_b.ino to your second Arduino")
+        print("• Configure .env file with your Blockfrost API key for real blockchain")
+        print("• Press Ctrl+C to stop all services")
+        print("="*60)
+    
+    def monitor_services(self):
+        """Monitor running services"""
+        logger.info("🔍 Monitoring services... (Press Ctrl+C to stop)")
+        
+        try:
+            while True:
+                time.sleep(30)  # Check every 30 seconds
+                
+                failed_services = []
+                for i, process in enumerate(self.processes):
+                    if process.poll() is not None:
+                        service_name = list(self.services.keys())[i]
+                        failed_services.append(service_name)
+                        logger.error(f"❌ Service {service_name} has stopped unexpectedly")
+                
+                if failed_services:
+                    logger.error(f"Failed services detected: {failed_services}")
+                    # In a production system, you might want to restart failed services
+                
+        except KeyboardInterrupt:
+            logger.info("🛑 Monitoring stopped by user")
+    
+    def shutdown(self):
+        """Shutdown all services gracefully"""
+        logger.info("🛑 Shutting down all services...")
+        
+        for i, process in enumerate(self.processes):
+            service_name = list(self.services.keys())[i]
             
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error getting transaction status: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Connection error: {str(e)}'
-        }), 500
-    except Exception as e:
-        logger.error(f"Error in get_transaction_status: {e}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Internal error: {str(e)}'
-        }), 500
-
-@app.route('/transaction/<transaction_id>', methods=['GET'])
-def get_transaction(transaction_id):
-    """Get specific transaction details"""
-    transaction = transactions_store.get(transaction_id)
-    if transaction:
-        return jsonify(transaction)
-    else:
-        return jsonify({'error': 'Transaction not found'}), 404
-
-def display_system_info():
-    """Display system information"""
-    print("\n" + "="*80)
-    print("🚀 UNIFIED ARDUINO-TO-CARDANO AI AGENTS SYSTEM (REAL BLOCKCHAIN)")
-    print("="*80)
-    print(f"💰 Transaction Address: {WALLET_ADDRESS}")
-    print(f"🌐 Server URL: http://localhost:{PORT}")
-    print(f"📡 Main Interface: http://localhost:{PORT}/")
-    print(f"🔧 Payment Service: {PAYMENT_SERVICE_URL}")
-    print(f"⛓️  Network: Cardano Preprod Testnet (REAL BLOCKCHAIN)")
-    print("\n📋 How it works:")
-    print("   1. User clicks 'Initiate Transaction' on web interface")
-    print("   2. System generates transaction address")
-    print("   3. Address is sent to REAL blockchain payment service")
-    print("   4. Payment service executes REAL Cardano transaction via Masumi")
-    print("   5. REAL transaction hash is displayed to user")
-    print("   6. Transaction can be viewed on Cardano blockchain explorer")
-    print("\n⚠️  IMPORTANT:")
-    print("   - This uses REAL Cardano preprod testnet")
-    print("   - Transactions are permanent on the blockchain")
-    print("   - Requires valid wallet with test ADA")
-    print("   - Requires Blockfrost API key and Masumi setup")
-    print("\n💡 Access the web interface at:")
-    print(f"   http://localhost:{PORT}/")
-    print("\n" + "="*80)
-
-def start_flask_server():
-    """Start the Flask server"""
-    try:
-        logger.info(f"Starting Flask server on port {PORT}")
-        app.run(host='0.0.0.0', port=PORT, debug=False, use_reloader=False)
-    except Exception as e:
-        logger.error(f"Failed to start Flask server: {e}")
-        return False
+            if process.poll() is None:
+                logger.info(f"Stopping {service_name}...")
+                process.terminate()
+                
+                # Wait for graceful shutdown
+                try:
+                    process.wait(timeout=10)
+                    logger.info(f"✅ {service_name} stopped gracefully")
+                except subprocess.TimeoutExpired:
+                    logger.warning(f"⚠️ Force killing {service_name}")
+                    process.kill()
+                    process.wait()
+        
+        self.processes.clear()
+        logger.info("🔚 All services stopped")
+    
+    def run(self):
+        """Main run method"""
+        try:
+            # Pre-flight checks
+            if not self.check_dependencies():
+                return False
+            
+            if not self.check_ports():
+                return False
+            
+            # Start all services
+            if not self.start_all_services():
+                self.shutdown()
+                return False
+            
+            # Monitor services
+            self.monitor_services()
+            
+        except Exception as e:
+            logger.error(f"❌ System error: {e}")
+            self.shutdown()
+            return False
+        finally:
+            self.shutdown()
+        
+        return True
 
 def main():
-    """Main function with yes/no prompt"""
-    print("\n🤖 Arduino-to-Cardano AI Agents - Unified System (REAL BLOCKCHAIN)")
-    print("=" * 70)
+    """Main entry point"""
+    print("🚀 Cardano-Arduino-AI System Launcher")
+    print("=====================================")
     
-    # Check if environment is configured
-    env_file = "c:\\Users\\dhwin\\project-unifiedcardonahackathon\\Project-dagadaga\\blockchain\\.env"
-    if not os.path.exists(env_file):
-        print("\n⚠️  SETUP REQUIRED:")
-        print("   No .env file found for blockchain configuration.")
-        print("   Please see .env.example in the Project folder for setup instructions.")
-        print("   You need:")
-        print("   - Blockfrost API key (free from https://blockfrost.io/)")
-        print("   - Test wallet with preprod test ADA")
-        print("   - Proper environment configuration")
-        print("\n   After setup, the system will use REAL Cardano blockchain!")
-    
-    # Yes/No prompt
-    while True:
-        response = input("\n❓ Do you want to start the REAL blockchain system? (yes/no): ").strip().lower()
-        
-        if response in ['yes', 'y']:
-            print("\n✅ Starting unified system with REAL blockchain...")
-            break
-        elif response in ['no', 'n']:
-            print("\n❌ System startup cancelled.")
-            print("👋 Goodbye!")
-            sys.exit(0)
-        else:
-            print("⚠️  Please enter 'yes' or 'no'")
-    
-    # Display system information
-    display_system_info()
-    
-    # Start the payment service first
-    print("🔄 Starting REAL blockchain payment service...")
-    global payment_service_process
-    payment_service_process = unified_system.start_payment_service()
-    
-    if not unified_system.payment_service_running:
-        print("\n❌ Failed to start real blockchain payment service!")
-        print("   Please check:")
-        print("   - .env file is properly configured")
-        print("   - Blockfrost API key is valid")
-        print("   - Network connectivity")
-        print("   - Requirements are installed: pip install -r requirements.txt")
-        input("\nPress Enter to exit...")
+    # Check if we're in the right directory
+    if not Path("requirements.txt").exists():
+        print("❌ Error: Please run this script from the project root directory")
+        print("   (where requirements.txt is located)")
         sys.exit(1)
     
-    # Start the main server
-    print("🔄 Starting main server...")
+    # Create and run launcher
+    launcher = SystemLauncher()
+    success = launcher.run()
     
-    try:
-        print(f"\n✅ REAL blockchain system initialized successfully!")
-        print(f"🌐 Open your browser and go to: http://localhost:{PORT}/")
-        print(f"⛓️  Connected to Cardano Preprod Testnet")
-        print("\n⚠️  IMPORTANT: This will execute REAL blockchain transactions!")
-        print("Press Ctrl+C to stop the system")
-        
-        # Start Flask server
-        start_flask_server()
-        
-    except KeyboardInterrupt:
-        print("\n\n🛑 System stopped by user")
-        if payment_service_process:
-            print("🔄 Stopping payment service...")
-            payment_service_process.terminate()
-        print("👋 Goodbye!")
-    except Exception as e:
-        logger.error(f"System error: {e}")
-        print(f"\n❌ System error: {e}")
-        if payment_service_process:
-            payment_service_process.terminate()
+    if success:
+        print("✅ System shutdown complete")
+        sys.exit(0)
+    else:
+        print("❌ System failed to start properly")
         sys.exit(1)
 
 if __name__ == "__main__":
