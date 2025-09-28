@@ -1,0 +1,51 @@
+{
+  "name": "arduino-masumi-simulator",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "setup": "node setup-masumi.js",
+    "mock-api": "json-server --watch mock-api-db.json --port 3001",
+    "clean": "rimraf dist",
+    "compose:up": "docker compose up -d",
+    "compose:down": "docker compose down",
+    "compose:logs": "docker compose logs -f masumi-payment",
+    "example:node": "node examples/node/register-and-listen.mjs"
+  },
+  "dependencies": {
+    "@codemirror/lang-cpp": "^6.0.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.38.3",
+    "axios": "^1.12.2",
+    "codemirror": "^6.0.2",
+    "lucid-cardano": "^0.10.7",
+    "lucide-react": "^0.544.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.3",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "json-server": "^1.0.0-beta.3",
+    "rimraf": "^6.0.1",
+    "dotenv": "^16.4.5",
+    "ws": "^8.18.0",
+    "tailwindcss": "^4.1.13",
+    "vite": "^7.1.7"
+  }
+}

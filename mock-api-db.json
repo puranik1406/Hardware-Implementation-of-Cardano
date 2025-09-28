@@ -1,0 +1,95 @@
+{
+  "agents": [
+    {
+      "id": "agent_a_001",
+      "type": "arduino",
+      "status": "online",
+      "balance": 1000,
+      "walletAddress": "addr1qxy2lpan99fcnyrjjvzalc329lw2rg2lkn8r0sdfk2a7k8kgjtrn5p4v5e6v5v5v5v5v5v5",
+      "lastSeen": "2025-09-28T10:30:00Z",
+      "capabilities": ["payment_send", "payment_receive"],
+      "metadata": {
+        "platform": "Arduino Uno",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "id": "agent_b_001", 
+      "type": "arduino",
+      "status": "online",
+      "balance": 500,
+      "walletAddress": "addr1q9z4kj8ha3wvpq45a2b7h6f5g4d3s2a1z9x8c7v6b5n4m3k2j1h0g9f8e7d6c5b4a3z2y1x0w",
+      "lastSeen": "2025-09-28T10:31:00Z",
+      "capabilities": ["payment_send", "payment_receive"],
+      "metadata": {
+        "platform": "Arduino Uno",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  
+  "transactions": [
+    {
+      "id": "tx_001",
+      "from": "agent_a_001",
+      "to": "agent_b_001", 
+      "amount": 100,
+      "currency": "ADA",
+      "status": "completed",
+      "txHash": "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz567",
+      "timestamp": "2025-09-28T10:25:00Z",
+      "blockHeight": 1000001,
+      "fees": 0.17
+    },
+    {
+      "id": "tx_002",
+      "from": "agent_b_001", 
+      "to": "agent_a_001",
+      "amount": 50,
+      "currency": "ADA", 
+      "status": "completed",
+      "txHash": "def456ghi789jkl012mno345pqr678stu901vwx234yz567abc123",
+      "timestamp": "2025-09-28T10:20:00Z",
+      "blockHeight": 1000000,
+      "fees": 0.17
+    }
+  ],
+
+  "networkStats": {
+    "latency": 25,
+    "throughput": 347,
+    "activeAgents": 2,
+    "blockHeight": 1000001,
+    "totalTransactions": 2,
+    "networkHealth": "good",
+    "timestamp": "2025-09-28T10:30:00Z"
+  },
+
+  "payments": [
+    {
+      "id": "pay_001",
+      "from": "agent_a_001",
+      "to": "agent_b_001",
+      "amount": 100,
+      "status": "pending",
+      "createdAt": "2025-09-28T10:30:00Z"
+    }
+  ],
+
+  "wallets": [
+    {
+      "id": "wallet_001",
+      "agentId": "agent_a_001", 
+      "address": "addr1qxy2lpan99fcnyrjjvzalc329lw2rg2lkn8r0sdfk2a7k8kgjtrn5p4v5e6v5v5v5v5v5v5",
+      "balance": 1000,
+      "network": "testnet"
+    },
+    {
+      "id": "wallet_002",
+      "agentId": "agent_b_001",
+      "address": "addr1q9z4kj8ha3wvpq45a2b7h6f5g4d3s2a1z9x8c7v6b5n4m3k2j1h0g9f8e7d6c5b4a3z2y1x0w", 
+      "balance": 500,
+      "network": "testnet"
+    }
+  ]
+}

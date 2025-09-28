@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: masumi
+      POSTGRES_PASSWORD: masumi_pass
+      POSTGRES_DB: masumi_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  masumi-payment:
+    image: masumi/payment-service:latest
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://masumi:masumi_pass@postgres:5432/masumi_db
+      BLOCKFROST_PROJECT_ID: ${BLOCKFROST_PROJECT_ID}
+      BLOCKFROST_API_URL: https://cardano-preprod.blockfrost.io/api/v0
+      MASUMI_REGISTRY_URL: http://masumi-registry:3000
+      MASUMI_ADMIN_SECRET: ${MASUMI_ADMIN_SECRET}
+    ports:
+      - "4000:4000"
+
+  masumi-registry:
+    image: masumi/registry-service:latest
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://masumi:masumi_pass@postgres:5432/masumi_db
+      BLOCKFROST_PROJECT_ID: ${BLOCKFROST_PROJECT_ID}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
