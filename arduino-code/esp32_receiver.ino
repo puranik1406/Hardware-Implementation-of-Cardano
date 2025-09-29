@@ -222,34 +222,72 @@ void processDisplayTransaction(String command) {
 }
 
 void displayTransaction(Transaction tx) {
-  Serial.println("=== DISPLAYING TRANSACTION ===");
+  // Check if this is an AI-initiated transaction
+  bool isAITransaction = tx.status.indexOf("AI") != -1;
+  
+  if (isAITransaction) {
+    Serial.println("🤖 === AI AGENT TRANSACTION === 🤖");
+    Serial.println("Initiated by: SATOSHI AI AGENT");
+    Serial.println("Decision Type: AUTONOMOUS");
+  } else {
+    Serial.println("=== DISPLAYING TRANSACTION ===");
+  }
+  
   Serial.println("Hash: " + tx.txHash);
   Serial.println("Amount: " + String(tx.amount) + " ADA");
   Serial.println("Status: " + tx.status);
   Serial.println("Cardano Explorer: https://preprod.cardanoscan.io/transaction/" + tx.txHash);
+  
+  if (isAITransaction) {
+    Serial.println("🧠 AI Analysis Complete");
+    Serial.println("🎯 Autonomous Decision Executed");
+  }
+  
   Serial.println("==============================");
   
   // Update LCD display (uncomment if using)
   // lcd.clear();
-  // lcd.setCursor(0, 0);
-  // lcd.print("TX: " + String(tx.amount) + " ADA");
+  // if (isAITransaction) {
+  //   lcd.setCursor(0, 0);
+  //   lcd.print("AI: " + String(tx.amount) + " ADA");
+  // } else {
+  //   lcd.setCursor(0, 0);
+  //   lcd.print("TX: " + String(tx.amount) + " ADA");
+  // }
   // lcd.setCursor(0, 1);
   // lcd.print(tx.txHash.substring(0, 16));
   
-  // Visual and audio feedback
-  if (tx.status == "SUCCESS") {
-    // Success indication
-    digitalWrite(LED_SUCCESS, HIGH);
-    playSuccessTone();
-    delay(500);
-    digitalWrite(LED_SUCCESS, LOW);
-    
-    // Flash success pattern
-    for (int i = 0; i < 3; i++) {
+  // Visual and audio feedback based on transaction type
+  if (tx.status == "SUCCESS" || tx.status == "AI_SUCCESS") {
+    if (isAITransaction) {
+      // Special AI success pattern
+      playAISuccessTone();
+      
+      // AI success pattern - alternating LEDs
+      for (int i = 0; i < 4; i++) {
+        digitalWrite(LED_SUCCESS, HIGH);
+        delay(150);
+        digitalWrite(LED_SUCCESS, LOW);
+        delay(50);
+        digitalWrite(LED_ERROR, HIGH);  // Use as second indicator
+        delay(150);
+        digitalWrite(LED_ERROR, LOW);
+        delay(50);
+      }
+    } else {
+      // Regular success indication
       digitalWrite(LED_SUCCESS, HIGH);
-      delay(200);
+      playSuccessTone();
+      delay(500);
       digitalWrite(LED_SUCCESS, LOW);
-      delay(200);
+      
+      // Flash success pattern
+      for (int i = 0; i < 3; i++) {
+        digitalWrite(LED_SUCCESS, HIGH);
+        delay(200);
+        digitalWrite(LED_SUCCESS, LOW);
+        delay(200);
+      }
     }
   } else {
     // Error indication
@@ -269,13 +307,15 @@ void displayTransaction(Transaction tx) {
   
   // Send transaction data via WebSocket
   if (wifiConnected) {
-    StaticJsonDocument<400> txData;
-    txData["type"] = "transaction";
+    StaticJsonDocument<500> txData;
+    txData["type"] = isAITransaction ? "ai_transaction" : "transaction";
     txData["txHash"] = tx.txHash;
     txData["amount"] = tx.amount;
     txData["status"] = tx.status;
     txData["timestamp"] = tx.timestamp;
     txData["explorerUrl"] = "https://preprod.cardanoscan.io/transaction/" + tx.txHash;
+    txData["aiInitiated"] = isAITransaction;
+    txData["autonomous"] = isAITransaction;
     
     String txDataStr;
     serializeJson(txData, txDataStr);
@@ -394,4 +434,19 @@ void playConnectedTone() {
   tone(BUZZER_PIN, 1200, 200);
   delay(250);
   tone(BUZZER_PIN, 800, 200);
+}
+
+void playAISuccessTone() {
+  // Play special AI success melody - more sophisticated
+  tone(BUZZER_PIN, 1000, 150);
+  delay(200);
+  tone(BUZZER_PIN, 1200, 150);
+  delay(200);
+  tone(BUZZER_PIN, 1500, 150);
+  delay(200);
+  tone(BUZZER_PIN, 2000, 300);  // Higher pitch for AI
+  delay(350);
+  tone(BUZZER_PIN, 1500, 150);
+  delay(200);
+  tone(BUZZER_PIN, 2000, 200);  // Ending flourish
 }

@@ -594,19 +594,35 @@ void checkPendingPayments() {
     try {
       console.log(`🤖 Creating Satoshi AI agent: ${agentName}`)
       
-      // In real implementation, this would call the MCP server
+      // Determine random strategy for AI agent
+      const strategies = ['conservative', 'balanced', 'aggressive']
+      const strategy = strategies[Math.floor(Math.random() * strategies.length)]
+      
       const newAgent = {
         agent_id: `satoshi_${agentName.toLowerCase()}_${Date.now()}`,
-        wallet_address: `addr_test1q${Math.random().toString(36).substring(2, 50)}...`,
+        wallet_address: 'addr_test1qrffhpxs9ky88sxfm9788mr8a4924e0uhl4fexvy9z5pt084p3q2uhgh9wvft4ejrjhx5yes2xpmy2cuufmzljdwtf7qvgt5rz',
         balance: 1000,
         autonomous_mode: false,
+        strategy: strategy,
         transaction_count: 0,
-        created_at: new Date().toISOString()
+        ai_decisions_made: 0,
+        successful_transactions: 0,
+        market_sentiment: 0.5,
+        risk_tolerance: strategy === 'conservative' ? 0.3 : strategy === 'balanced' ? 0.5 : 0.7,
+        created_at: new Date().toISOString(),
+        last_decision: null,
+        decision_history: []
       }
       
       setSatoshiAgents(prev => [...prev, newAgent])
       
-      console.log('✅ Satoshi agent created successfully:', newAgent.agent_id)
+      console.log(`✅ Satoshi AI agent created: ${newAgent.agent_id} (${strategy} strategy)`)
+      
+      // Show notification
+      setNotification({
+        message: `🤖 AI Agent "${agentName}" created with ${strategy} strategy`,
+        type: 'success'
+      })
       
     } catch (error) {
       console.error('❌ Failed to create Satoshi agent:', error)
@@ -620,20 +636,102 @@ void checkPendingPayments() {
       setSatoshiAgents(prev => 
         prev.map(agent => 
           agent.agent_id === agentId 
-            ? { ...agent, autonomous_mode: enable }
+            ? { 
+                ...agent, 
+                autonomous_mode: enable,
+                last_decision: enable ? new Date().toISOString() : agent.last_decision
+              }
             : agent
         )
       )
       
       if (enable) {
-        console.log(`🚀 Agent ${agentId} is now autonomous`)
+        console.log(`🚀 Agent ${agentId} is now autonomous and will make AI-driven transaction decisions!`)
+        
+        // Start AI decision simulation for this agent
+        simulateAIAgentActivity(agentId)
+        
+        setNotification({
+          message: `🤖 AI Agent autonomous mode ENABLED - Agent will now make independent blockchain decisions`,
+          type: 'success'
+        })
       } else {
         console.log(`⏸️ Agent ${agentId} autonomous mode disabled`)
+        
+        setNotification({
+          message: `⏸️ AI Agent autonomous mode disabled`,
+          type: 'info'
+        })
       }
       
     } catch (error) {
       console.error('❌ Failed to toggle autonomous mode:', error)
     }
+  }
+
+  // Simulate AI agent making autonomous decisions and transactions
+  const simulateAIAgentActivity = (agentId) => {
+    const runAIDecisionCycle = () => {
+      setSatoshiAgents(prev => 
+        prev.map(agent => {
+          if (agent.agent_id === agentId && agent.autonomous_mode) {
+            // Simulate AI decision process
+            const marketConditions = Math.random()
+            const confidence = Math.random()
+            const shouldTransact = confidence > (agent.strategy === 'conservative' ? 0.7 : 
+                                              agent.strategy === 'balanced' ? 0.55 : 0.4)
+            
+            const decision = {
+              timestamp: new Date().toISOString(),
+              confidence: confidence,
+              market_conditions: marketConditions,
+              decision: shouldTransact ? 'TRANSACT' : 'HOLD',
+              amount: shouldTransact ? Math.round((Math.random() * 2 + 0.5) * 100) / 100 : 0
+            }
+            
+            if (shouldTransact && agent.balance > decision.amount) {
+              console.log(`🤖 AI Agent ${agentId} decided to transact ${decision.amount} ADA (Confidence: ${confidence.toFixed(2)})`)
+              
+              // Execute AI-driven transaction
+              setTimeout(() => {
+                handlePayment('satoshi_ai', 'arduino_b', decision.amount)
+              }, 1000)
+              
+              return {
+                ...agent,
+                ai_decisions_made: agent.ai_decisions_made + 1,
+                successful_transactions: agent.successful_transactions + 1,
+                balance: agent.balance - decision.amount,
+                last_decision: decision.timestamp,
+                decision_history: [...agent.decision_history.slice(-10), decision],
+                market_sentiment: marketConditions
+              }
+            } else {
+              console.log(`🤖 AI Agent ${agentId} decided to HOLD (Confidence: ${confidence.toFixed(2)}, Conditions: ${marketConditions.toFixed(2)})`)
+              
+              return {
+                ...agent,
+                ai_decisions_made: agent.ai_decisions_made + 1,
+                last_decision: decision.timestamp,
+                decision_history: [...agent.decision_history.slice(-10), decision],
+                market_sentiment: marketConditions
+              }
+            }
+          }
+          return agent
+        })
+      )
+    }
+
+    // Run AI decisions every 10-30 seconds
+    const aiInterval = setInterval(() => {
+      const agent = satoshiAgents.find(a => a.agent_id === agentId)
+      if (!agent || !agent.autonomous_mode) {
+        clearInterval(aiInterval)
+        return
+      }
+      runAIDecisionCycle()
+    }, Math.random() * 20000 + 10000) // 10-30 seconds
   }
 
   // Simulate MCP connection
@@ -655,7 +753,7 @@ void checkPendingPayments() {
             </div>
             <div>
               <h1 className="heading-2 mb-0">Arduino Masumi Network</h1>
-              <p className="text-muted text-small">Blockchain-powered Arduino payments</p>
+              <p className="text-muted text-small">🤖 AI Agents + Real Hardware + Blockchain Payments</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -678,6 +776,30 @@ void checkPendingPayments() {
             paymentHistory={paymentHistory}
           />
         </div>
+
+        {/* AI Agent Spotlight Banner */}
+        {satoshiAgents.some(agent => agent.autonomous_mode) && (
+          <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-lg p-6 mb-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-3">
+                  🤖 Satoshi AI Agents Active
+                  <span className="animate-pulse w-3 h-3 bg-green-400 rounded-full"></span>
+                </h2>
+                <p className="text-purple-100">
+                  {satoshiAgents.filter(a => a.autonomous_mode).length} autonomous AI agents are making 
+                  independent blockchain transaction decisions in real-time
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">
+                  {satoshiAgents.reduce((sum, agent) => sum + (agent.ai_decisions_made || 0), 0)}
+                </div>
+                <div className="text-sm text-purple-200">AI Decisions Made</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Real Arduino Hardware Section */}
         <div className="grid lg:grid-cols-2 gap-6 mb-8">

@@ -267,9 +267,9 @@ class ArduinoBridge:
                     line = self.arduino_uno.readline().decode().strip()
                     
                     if "BUTTON_PRESSED" in line:
-                        logger.info("Button pressed on Arduino Uno - triggering automatic payment")
-                        # Trigger automatic payment
-                        await self.send_payment(1.5, "esp32_receiver")
+                        logger.info("🔘 Button pressed on Arduino Uno - triggering Satoshi AI agent decision")
+                        # Instead of direct payment, trigger AI agent decision
+                        await self.trigger_satoshi_ai_transaction()
                     
                     elif "HEARTBEAT:" in line:
                         # Handle heartbeat data
@@ -281,6 +281,45 @@ class ArduinoBridge:
             except Exception as e:
                 logger.error(f"Button monitoring error: {e}")
                 await asyncio.sleep(1)
+    
+    async def trigger_satoshi_ai_transaction(self):
+        """Trigger Satoshi AI agent to make autonomous transaction decision"""
+        try:
+            logger.info("🤖 Triggering Satoshi AI agent autonomous transaction...")
+            
+            # In real implementation, this would call the MCP server
+            # For now, simulate AI decision and transaction
+            
+            # Simulate AI agent decision process
+            import random
+            confidence = random.uniform(0.6, 0.95)
+            amount = round(random.uniform(0.5, 3.0), 2)
+            
+            logger.info(f"🧠 AI Agent Decision: Confidence {confidence:.2f}, Amount {amount} ADA")
+            
+            if confidence > 0.7:  # AI decides to transact
+                logger.info(f"✅ AI Agent approves transaction: {amount} ADA")
+                
+                # Execute the payment
+                result = await self.send_payment(amount, "ai_agent_decision")
+                
+                if result["success"]:
+                    logger.info(f"🎉 Satoshi AI agent successfully executed autonomous transaction!")
+                    logger.info(f"TX Hash: {result['transaction']['tx_hash']}")
+                    
+                    # Send special notification to Arduino
+                    self.send_to_arduino(f"AI_SUCCESS:{amount}:{result['transaction']['tx_hash'][:8]}")
+                    
+                else:
+                    logger.error(f"❌ AI agent transaction failed: {result['error']}")
+                    self.send_to_arduino("AI_FAILED:0:ERROR")
+            else:
+                logger.info(f"🚫 AI Agent declined transaction (low confidence: {confidence:.2f})")
+                self.send_to_arduino(f"AI_DECLINED:{confidence:.2f}:LOW_CONFIDENCE")
+                
+        except Exception as e:
+            logger.error(f"Error in AI transaction trigger: {e}")
+            self.send_to_arduino("AI_ERROR:0:EXCEPTION")
     
     def get_status(self) -> Dict[str, Any]:
         """Get status of all components"""

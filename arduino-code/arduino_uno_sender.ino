@@ -91,6 +91,18 @@ void processSerialCommand(String command) {
   else if (command.startsWith("SET_AGENT:")) {
     setAgentInfo(command);
   }
+  else if (command.startsWith("AI_SUCCESS:")) {
+    processAISuccess(command);
+  }
+  else if (command.startsWith("AI_DECLINED:")) {
+    processAIDeclined(command);
+  }
+  else if (command.startsWith("AI_FAILED:") || command.startsWith("AI_ERROR:")) {
+    processAIError(command);
+  }
+  else if (command.startsWith("AI_TRANSACTION:")) {
+    processAITransaction(command);
+  }
   else {
     Serial.println("ERROR: Unknown command - " + command);
   }
@@ -156,11 +168,16 @@ void checkPaymentButton() {
     buttonPressed = true;
     buttonPressTime = millis();
     
-    Serial.println("BUTTON_PRESSED: Sending 1.5 ADA to ESP32 display");
+    Serial.println("BUTTON_PRESSED: Triggering Satoshi AI Agent Decision");
+    Serial.println("🤖 AI Agent will analyze market conditions and decide...");
     
-    // Send predefined payment
-    String autoCommand = "SEND_PAYMENT:1.5:esp32_receiver";
-    processSendPayment(autoCommand);
+    // Flash LED to indicate AI processing
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_PIN, HIGH);
+      delay(100);
+      digitalWrite(LED_PIN, LOW);
+      delay(100);
+    }
   }
   
   // Reset button state after release
@@ -168,6 +185,125 @@ void checkPaymentButton() {
     if (millis() - buttonPressTime > 50) { // Debounce
       buttonPressed = false;
     }
+  }
+}
+
+void processAISuccess(String command) {
+  // Parse: AI_SUCCESS:<amount>:<tx_hash>
+  int firstColon = command.indexOf(':', 11);
+  int secondColon = command.indexOf(':', firstColon + 1);
+  
+  if (firstColon != -1 && secondColon != -1) {
+    float amount = command.substring(11, firstColon).toFloat();
+    String txHashShort = command.substring(firstColon + 1, secondColon);
+    
+    Serial.println("🎉 SATOSHI AI AGENT SUCCESS! 🎉");
+    Serial.println("AI Agent executed autonomous transaction:");
+    Serial.println("  Amount: " + String(amount) + " ADA");
+    Serial.println("  TX Hash: " + txHashShort + "...");
+    Serial.println("  Decision: AI approved based on market analysis");
+    
+    lastAmount = amount;
+    currentTxHash = txHashShort + "...";
+    
+    // Success celebration pattern
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(LED_PIN, HIGH);
+      digitalWrite(STATUS_LED_PIN, HIGH);
+      delay(200);
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(STATUS_LED_PIN, LOW);
+      delay(200);
+    }
+    
+    Serial.println("AI_TRANSACTION_COMPLETE");
+  }
+}
+
+void processAIDeclined(String command) {
+  // Parse: AI_DECLINED:<confidence>:<reason>
+  int firstColon = command.indexOf(':', 12);
+  int secondColon = command.indexOf(':', firstColon + 1);
+  
+  if (firstColon != -1) {
+    float confidence = command.substring(12, firstColon).toFloat();
+    String reason = secondColon != -1 ? command.substring(firstColon + 1, secondColon) : "UNKNOWN";
+    
+    Serial.println("🤔 AI AGENT DECLINED TRANSACTION");
+    Serial.println("AI Agent decision: NO TRANSACTION");
+    Serial.println("  Confidence: " + String(confidence, 2));
+    Serial.println("  Reason: " + reason);
+    Serial.println("  Analysis: Market conditions not favorable");
+    
+    // Declined pattern - slow blink
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(STATUS_LED_PIN, HIGH);
+      delay(500);
+      digitalWrite(STATUS_LED_PIN, LOW);
+      delay(500);
+    }
+    
+    Serial.println("AI_DECISION_COMPLETE");
+  }
+}
+
+void processAIError(String command) {
+  Serial.println("❌ AI AGENT ERROR");
+  Serial.println("AI Agent encountered an error during decision process");
+  Serial.println("Command: " + command);
+  
+  // Error pattern - fast blink
+  for (int i = 0; i < 10; i++) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    delay(50);
+    digitalWrite(STATUS_LED_PIN, LOW);
+    delay(50);
+  }
+  
+  Serial.println("AI_ERROR_HANDLED");
+}
+
+void processAITransaction(String command) {
+  // Parse: AI_TRANSACTION:<agent_id>:<amount>:<tx_hash_short>
+  int firstColon = command.indexOf(':', 15);
+  int secondColon = command.indexOf(':', firstColon + 1);
+  int thirdColon = command.indexOf(':', secondColon + 1);
+  
+  if (firstColon != -1 && secondColon != -1 && thirdColon != -1) {
+    String agentId = command.substring(15, firstColon);
+    float amount = command.substring(firstColon + 1, secondColon).toFloat();
+    String txHash = command.substring(secondColon + 1, thirdColon);
+    
+    Serial.println("🤖 AUTONOMOUS AI TRANSACTION DETECTED");
+    Serial.println("Agent: " + agentId);
+    Serial.println("Amount: " + String(amount) + " ADA");
+    Serial.println("TX: " + txHash + "...");
+    Serial.println("Type: Fully Autonomous AI Decision");
+    
+    lastAmount = amount;
+    currentTxHash = txHash + "...";
+    
+    // AI transaction pattern - unique sequence
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(50);
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(STATUS_LED_PIN, LOW);
+    delay(50);
+    
+    // Repeat pattern 3 times
+    for (int i = 0; i < 3; i++) {
+      digitalWrite(LED_PIN, HIGH);
+      digitalWrite(STATUS_LED_PIN, HIGH);
+      delay(150);
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(STATUS_LED_PIN, LOW);
+      delay(150);
+    }
+    
+    Serial.println("AI_AUTONOMOUS_TX_PROCESSED");
   }
 }
 

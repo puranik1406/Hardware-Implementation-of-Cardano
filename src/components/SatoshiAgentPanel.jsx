@@ -150,12 +150,41 @@ export default function SatoshiAgentPanel({
                       <span className="font-medium">{agent.balance.toFixed(2)} ADA</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Transactions:</span>
-                      <span className="font-medium">{agent.transaction_count || 0}</span>
+                      <span className="text-gray-600">Strategy:</span>
+                      <span className={`font-medium text-xs px-2 py-1 rounded ${
+                        agent.strategy === 'conservative' ? 'bg-blue-100 text-blue-700' :
+                        agent.strategy === 'aggressive' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {agent.strategy || 'balanced'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Wallet:</span>
-                      <span className="font-mono text-xs">{agent.wallet_address?.slice(0, 12)}...</span>
+                      <span className="text-gray-600">AI Decisions:</span>
+                      <span className="font-medium">{agent.ai_decisions_made || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Success Rate:</span>
+                      <span className="font-medium">
+                        {agent.ai_decisions_made > 0 
+                          ? Math.round((agent.successful_transactions || 0) / agent.ai_decisions_made * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Market Sentiment:</span>
+                      <div className="flex items-center gap-1">
+                        <div className="w-12 h-2 bg-gray-200 rounded">
+                          <div 
+                            className={`h-2 rounded ${
+                              (agent.market_sentiment || 0.5) > 0.6 ? 'bg-green-500' : 
+                              (agent.market_sentiment || 0.5) > 0.4 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${(agent.market_sentiment || 0.5) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs">{Math.round((agent.market_sentiment || 0.5) * 100)}%</span>
+                      </div>
                     </div>
                   </div>
 
