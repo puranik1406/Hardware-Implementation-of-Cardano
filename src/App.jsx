@@ -4,6 +4,8 @@ import ArduinoBoard from './components/ArduinoBoard'
 import MasumiPaymentPanel from './components/MasumiPaymentPanel'
 import AgentStatusPanel from './components/AgentStatusPanel'
 import TransactionNotification from './components/TransactionNotification'
+import RealArduinoPanel from './components/RealArduinoPanel'
+import SatoshiAgentPanel from './components/SatoshiAgentPanel'
 import './debug-masumi.js' // Debug Masumi integration
 import './App.css'
 
@@ -190,6 +192,24 @@ void checkPendingPayments() {
     totalTransactions: 0
   })
   const [notification, setNotification] = useState(null)
+  
+  // Real Arduino hardware state
+  const [arduinoStatus, setArduinoStatus] = useState({
+    connected: false,
+    port: null,
+    agentId: null
+  })
+  const [esp32Status, setEsp32Status] = useState({
+    connected: false,
+    port: null,
+    wifiConnected: false,
+    ipAddress: null
+  })
+  const [recentCommands, setRecentCommands] = useState([])
+  
+  // Satoshi AI Agents state
+  const [satoshiAgents, setSatoshiAgents] = useState([])
+  const [mcpConnected, setMcpConnected] = useState(false)
 
   useEffect(() => {
     // Initialize Masumi Network service and create real Arduino agents
@@ -494,6 +514,136 @@ void checkPendingPayments() {
     }
   }
 
+  // Arduino Hardware Management Functions
+  const handleConnectBoards = async () => {
+    try {
+      console.log('🔍 Detecting Arduino boards...')
+      
+      // Simulate board detection and connection
+      // In real implementation, this would call the MCP server
+      setTimeout(() => {
+        setArduinoStatus({
+          connected: true,
+          port: 'COM3',
+          agentId: 'arduino_uno_sender'
+        })
+        
+        setEsp32Status({
+          connected: true,
+          port: 'COM4',
+          wifiConnected: true,
+          ipAddress: '192.168.1.100'
+        })
+        
+        console.log('✅ Arduino boards connected successfully')
+      }, 2000)
+      
+    } catch (error) {
+      console.error('❌ Failed to connect to Arduino boards:', error)
+    }
+  }
+
+  const handleSendArduinoCommand = async (board, command) => {
+    try {
+      console.log(`📤 Sending command to ${board}: ${command}`)
+      
+      // Add to recent commands
+      const newCommand = {
+        timestamp: new Date().toISOString(),
+        board,
+        command,
+        status: 'pending'
+      }
+      
+      setRecentCommands(prev => [...prev.slice(-20), newCommand])
+      
+      // Simulate command execution
+      setTimeout(() => {
+        setRecentCommands(prev => 
+          prev.map(cmd => 
+            cmd === newCommand 
+              ? { ...cmd, status: 'success', response: 'Command executed successfully' }
+              : cmd
+          )
+        )
+        
+        // If it's a payment command, trigger the payment flow
+        if (command.startsWith('SEND_PAYMENT:')) {
+          const parts = command.split(':')
+          const amount = parseFloat(parts[1])
+          handlePayment('arduino_a', 'arduino_b', amount)
+        }
+        
+      }, 1000)
+      
+    } catch (error) {
+      console.error('❌ Arduino command failed:', error)
+      
+      setRecentCommands(prev => 
+        prev.map(cmd => 
+          cmd.command === command && cmd.board === board
+            ? { ...cmd, status: 'error', response: error.message }
+            : cmd
+        )
+      )
+    }
+  }
+
+  // Satoshi AI Agent Management Functions
+  const handleCreateSatoshiAgent = async (agentName) => {
+    try {
+      console.log(`🤖 Creating Satoshi AI agent: ${agentName}`)
+      
+      // In real implementation, this would call the MCP server
+      const newAgent = {
+        agent_id: `satoshi_${agentName.toLowerCase()}_${Date.now()}`,
+        wallet_address: `addr_test1q${Math.random().toString(36).substring(2, 50)}...`,
+        balance: 1000,
+        autonomous_mode: false,
+        transaction_count: 0,
+        created_at: new Date().toISOString()
+      }
+      
+      setSatoshiAgents(prev => [...prev, newAgent])
+      
+      console.log('✅ Satoshi agent created successfully:', newAgent.agent_id)
+      
+    } catch (error) {
+      console.error('❌ Failed to create Satoshi agent:', error)
+    }
+  }
+
+  const handleToggleAutonomous = async (agentId, enable) => {
+    try {
+      console.log(`🔄 ${enable ? 'Enabling' : 'Disabling'} autonomous mode for ${agentId}`)
+      
+      setSatoshiAgents(prev => 
+        prev.map(agent => 
+          agent.agent_id === agentId 
+            ? { ...agent, autonomous_mode: enable }
+            : agent
+        )
+      )
+      
+      if (enable) {
+        console.log(`🚀 Agent ${agentId} is now autonomous`)
+      } else {
+        console.log(`⏸️ Agent ${agentId} autonomous mode disabled`)
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to toggle autonomous mode:', error)
+    }
+  }
+
+  // Simulate MCP connection
+  useEffect(() => {
+    setTimeout(() => {
+      setMcpConnected(true)
+      console.log('🔗 MCP (Model Context Protocol) connected')
+    }, 3000)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Clean Header */}
@@ -529,7 +679,33 @@ void checkPendingPayments() {
           />
         </div>
 
-        {/* Main Content - Side by Side Layout */}
+        {/* Real Arduino Hardware Section */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          <RealArduinoPanel
+            onSendCommand={handleSendArduinoCommand}
+            arduinoStatus={arduinoStatus}
+            esp32Status={esp32Status}
+            recentCommands={recentCommands}
+            onConnectBoards={handleConnectBoards}
+          />
+          
+          <SatoshiAgentPanel
+            agents={satoshiAgents}
+            onCreateAgent={handleCreateSatoshiAgent}
+            onToggleAutonomous={handleToggleAutonomous}
+            onAgentAction={() => {}}
+            mcpConnected={mcpConnected}
+          />
+        </div>
+
+        {/* Simulated Arduino Boards Section */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <span className="w-6 h-6 bg-blue-500 rounded text-white text-sm flex items-center justify-center">S</span>
+            Simulated Arduino Environment
+          </h2>
+        </div>
+        
         <div className="grid lg:grid-cols-2 gap-6 mb-6">
           {/* Arduino Boards */}
           <div className="space-y-6">
