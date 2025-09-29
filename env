@@ -1,0 +1,105 @@
+# Environment Configuration (.env)
+# Using proven configuration from working project
+# Note: Only variables prefixed with VITE_ are exposed to the frontend (Vite).
+
+# =============================
+# Cardano Network Configuration
+# =============================
+CARDANO_NETWORK=preprod
+BLOCKFROST_PROJECT_ID=preprod4cdqcEwOm0BdBbwGKaevFWTZnczoko1r
+BLOCKFROST_BASE_URL=https://cardano-preprod.blockfrost.io/api/v0
+
+# Satoshi Agents (Cardano addresses on preprod) — provide real funded test addresses
+AGENT1_ID=satoshi-1
+AGENT1_ADDRESS=addr_test1vq588y6u6evwpgwhp4mnca55pfd4ez2epye5unw8dqhqsksr5kj4w
+AGENT2_ID=satoshi-2
+AGENT2_ADDRESS=addr_test1qqxdsjedg0fpurjt345lymmyxrs2r4u7etwchfwze7fwvfx76eyhp6agt96xprlux3tgph0zm5degavwkge2f9jmszqqg3p703
+# Signing key for Agent 1 (sender) — prefer file path; never commit real secrets
+# One of the following must be set on the host/runtime (not committed):
+# AGENT1_SKEY_JSON_PATH=C:\\secure\\agent1.skey
+# or
+AGENT1_SKEY_CBOR=582047a47d1c55c5e8b40f27fba7649002356331e3f4d48931bcc90ee907bd67a5c0
+
+# Frontend Cardano config (Vite exposed)
+VITE_CARDANO_NETWORK=preprod
+VITE_BLOCKFROST_PROJECT_ID=preprod4cdqcEwOm0BdBbwGKaevFWTZnczoko1r
+VITE_BLOCKFROST_API_URL=https://cardano-preprod.blockfrost.io/api/v0
+
+# =============================
+# Masumi Network Configuration
+# =============================
+MASUMI_NETWORK_URL=http://localhost:3001
+MASUMI_API_KEY=4f8e8c2b7a19a1e4bb09d92c08c5f712de3764f7a1f33b675a3d1a3f26cd8e40
+MASUMI_TESTNET=true
+MASUMI_PAYMENT_URL=http://localhost:3001/api/cardano/transfer
+
+# Frontend Masumi config (Vite exposed) - Official Services
+VITE_MASUMI_API_URL=http://localhost:3001/api/v1
+VITE_MASUMI_REGISTRY_URL=http://localhost:3000/api/v1
+VITE_MASUMI_API_KEY=8d6b3c5f8fca31d4a72f5e8897a1c9c9b4a7d8f03e1f82a35a3f9f7b6a6d2a1c
+VITE_MASUMI_WS_URL=ws://localhost:3001/ws
+VITE_MASUMI_TESTNET=true
+
+# Cardano Integration service URL
+MASUMI_CARDANO_INTEGRATION_URL=http://localhost:4002
+
+# =============================
+# Payment Service Configuration
+# =============================
+PAYMENT_SERVICE_HOST=localhost
+PAYMENT_SERVICE_PORT=8000
+MOCK_MODE=true
+
+# Arduino Bridge / Serial
+SERIAL_PATH=COM3
+SERIAL_BAUD=9600
+ARDUINO_BRIDGE_PORT=5001
+
+# Frontend payment config
+VITE_PAYMENT_SERVICE_URL=http://localhost:8000
+VITE_MOCK_MODE=false
+VITE_USE_MOCK_API=false
+VITE_MOCK_API_URL=http://localhost:3001
+
+# =============================
+# Official Masumi Service Configuration
+# =============================
+ENCRYPTION_KEY=73e02f41b0d5e1f91c90d6aa20f2c47c83f02d4a1d7a68c19a8f1e4b3c7a9e2f
+ADMIN_KEY=8d6b3c5f8fca31d4a72f5e8897a1c9c9b4a7d8f03e1f82a35a3f9f7b6a6d2a1c
+
+# Legacy security (for compatibility)
+SECRET_KEY=8d6b3c5f8fca31d4a72f5e8897a1c9c9b4a7d8f03e1f82a35a3f9f7b6a6d2a1c
+WALLET_ENCRYPTION_KEY=73e02f41b0d5e1f91c90d6aa20f2c47c83f02d4a1d7a68c19a8f1e4b3c7a9e2f
+
+# Frontend security (admin secret for compatibility)
+VITE_MASUMI_ADMIN_SECRET=8d6b3c5f8fca31d4a72f5e8897a1c9c9b4a7d8f03e1f82a35a3f9f7b6a6d2a1c
+
+# =============================
+# Development & Logging
+# =============================
+NODE_ENV=development
+DEBUG=true
+ENABLE_CORS=true
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+
+# Frontend development
+VITE_DEBUG_MODE=true
+VITE_LOG_LEVEL=debug
+VITE_ENABLE_CORS=true
+
+# =============================
+# Optional/Legacy Support
+# =============================
+VITE_SOKOSUMI_WS_URL=wss://app.sokosumi.com/ws
+VITE_KOIOS_API_URL=https://preprod.koios.rest/api/v1
+VITE_FORCE_HTTPS=false
+VITE_RATE_LIMIT=60
+VITE_CONNECTION_TIMEOUT=30000
+VITE_DEFAULT_AGENT_BALANCE=1000
+VITE_DEFAULT_NETWORK_ID=masumi-testnet-001
+VITE_ARDUINO_SERIAL_BAUD=115200
+
+# Docker/Backend compatibility
+MASUMI_ADMIN_SECRET=8d6b3c5f8fca31d4a72f5e8897a1c9c9b4a7d8f03e1f82a35a3f9f7b6a6d2a1c
+DATABASE_URL=postgres://masumi:masumi_pass@localhost:5432/masumi_db
