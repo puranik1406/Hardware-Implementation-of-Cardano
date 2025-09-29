@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Masumi Satoshi Dashboard</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    code { background: #f6f8fa; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Masumi × Satoshi – Live Monitor</h1>
+  <div class="grid">
+    <div class="card">
+      <h3>Serial</h3>
+      <pre id="serial"></pre>
+    </div>
+    <div class="card">
+      <h3>Transactions</h3>
+      <pre id="tx"></pre>
+      <div id="explorer"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { io } from 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/+esm';
+    const serialEl = document.getElementById('serial');
+    const txEl = document.getElementById('tx');
+    const BRIDGE_WS = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + (location.hostname || 'localhost') + ':5001';
+    const socket = io(BRIDGE_WS);
+    socket.on('hello', (m) => console.log('hello', m));
+    socket.on('serial:line', (m) => { serialEl.textContent += (m.line + '\n'); });
+    socket.on('payment:trigger', (m) => { txEl.textContent += ('TRIGGER ' + JSON.stringify(m) + '\n'); });
+    socket.on('payment:response', (m) => {
+      txEl.textContent += ('RESP ' + JSON.stringify(m) + '\n');
+      const tx = m?.tx_id || m?.txHash;
+      if (tx) {
+        const url = `https://preprod.cardanoscan.io/transaction/${tx}`;
+        document.getElementById('explorer').innerHTML = `<a target="_blank" href="${url}">View on CardanoScan</a>`;
+      }
+    });
+  </script>
+</body>
+</html>

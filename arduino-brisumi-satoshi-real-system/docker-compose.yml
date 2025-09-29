@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: masumi
+      POSTGRES_PASSWORD: masumi
+      POSTGRES_DB: masumi
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  masumi-payment:
+    build: ./backend/masumi-services
+    environment:
+      DATABASE_URL: postgresql://masumi:masumi@postgres:5432/masumi
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      MASUMI_CARDANO_INTEGRATION_URL: http://cardano-integration:4002
+      AI_AGENTS_URL: http://ai-agents:6001
+      AGENT1_ID: ${AGENT1_ID}
+      AGENT1_ADDRESS: ${AGENT1_ADDRESS}
+      AGENT2_ID: ${AGENT2_ID}
+      AGENT2_ADDRESS: ${AGENT2_ADDRESS}
+    depends_on:
+      - postgres
+      - redis
+      - cardano-integration
+      - ai-agents
+    ports:
+      - "3001:3001"
+
+  cardano-integration:
+    build: ./backend/cardano-integration
+    environment:
+      PORT: 4002
+      CARDANO_NETWORK: ${CARDANO_NETWORK}
+      BLOCKFROST_PROJECT_ID: ${BLOCKFROST_PROJECT_ID}
+      BLOCKFROST_BASE_URL: ${BLOCKFROST_BASE_URL}
+      AGENT1_SKEY_CBOR: ${AGENT1_SKEY_CBOR}
+    ports:
+      - "4002:4002"
+
+  ai-agents:
+    build: ./backend/ai-agents
+    environment:
+      PORT: 6001
+    ports:
+      - "6001:6001"
+
+volumes:
+  pgdata:
