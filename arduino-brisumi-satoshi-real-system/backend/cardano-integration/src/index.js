@@ -61,7 +61,7 @@ app.post('/transfer', async (req, res) => {
     console.log('[transfer] incoming', { fromAddress, toAddress, amountLovelace: Number(amountLovelace) });
     if (!fromAddress || !toAddress || !amountLovelace) return res.status(400).json({ error: 'fromAddress,toAddress,amountLovelace required' });
 
-    const l = await getLucid();
+  const l = await getLucid();
     // Ensure provider time settings are initialized (prevents zeroTime undefined)
     try { await l.provider.getTimeSettings(); } catch {}
 
@@ -79,7 +79,7 @@ app.post('/transfer', async (req, res) => {
       return undefined;
     }
 
-    const providedKey = firstNonEmpty(skeyCbor, process.env.AGENT1_SKEY_CBOR);
+  const providedKey = firstNonEmpty(skeyCbor, process.env.AGENT1_SKEY_CBOR);
     if (providedKey) {
       const raw = providedKey.toString().trim();
       const candidates = [raw, stripCbor(raw)];

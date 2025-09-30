@@ -16,17 +16,18 @@ app.use(express.json());
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT || 3001);
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 const CARDANO_SVC = process.env.MASUMI_CARDANO_INTEGRATION_URL || 'http://localhost:4002';
 const AGENTS_SVC = process.env.AI_AGENTS_URL || 'http://localhost:6001';
 
+// Align canonical agent IDs for demo
+const DEFAULT_AGENT1_ID = process.env.AGENT1_ID || 'satoshi_alpha_001';
+const DEFAULT_AGENT2_ID = process.env.AGENT2_ID || 'satoshi_beta_002';
 const AGENT_MAP = {
-  [process.env.AGENT1_ID || 'satoshi_alpha_001']:
-    { id: process.env.AGENT1_ID || 'satoshi_alpha_001', address: process.env.AGENT1_ADDRESS },
-  [process.env.AGENT2_ID || 'satoshi_beta_002']:
-    { id: process.env.AGENT2_ID || 'satoshi_beta_002', address: process.env.AGENT2_ADDRESS },
+  [DEFAULT_AGENT1_ID]: { id: DEFAULT_AGENT1_ID, address: process.env.AGENT1_ADDRESS },
+  [DEFAULT_AGENT2_ID]: { id: DEFAULT_AGENT2_ID, address: process.env.AGENT2_ADDRESS },
 };
 
 function getAgentAddress(agentId) {
@@ -86,8 +87,12 @@ app.get('/api/wallets', async (_req, res) => {
   }
 });
 
-// Export mnemonics (if configured) — do NOT add in production without auth
+// Export mnemonics (if configured) — behind admin token
 app.get('/api/wallets/export', (req, res) => {
+  const adminToken = process.env.ADMIN_TOKEN;
+  if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   const { type } = req.query || {};
   if (!type) return res.status(400).json({ error: 'type required (purchase|selling)' });
   if (type === 'purchase' && PURCHASE_WALLET_MNEMONIC) return res.json({ mnemonic: PURCHASE_WALLET_MNEMONIC });
@@ -127,7 +132,7 @@ app.get('/admin', async (_req, res) => {
   <script>
     async function copy(text){ await navigator.clipboard.writeText(text); alert('Copied'); }
     async function exportMnemonic(type){ 
-      const r = await fetch('/api/wallets/export?type='+type);
+      const r = await fetch('/api/wallets/export?type='+type, { headers: { 'x-admin-token': '${process.env.ADMIN_TOKEN || ''}' } });
       if(!r.ok){ alert('Not configured'); return; }
       const j = await r.json(); alert(j.mnemonic);
     }
@@ -172,7 +177,9 @@ app.post('/api/cardano/transfer', async (req, res) => {
     // Notify Agent 2 of incoming tx (acknowledgment task)
     try {
       await fetch(`${AGENTS_SVC}/on-receive`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ toAgent, txId }) });
-    } catch {}
+    } catch (e) {
+      console.warn('Agent on-receive notify failed', e?.message || e);
+    }
     res.status(200).json(payload);
   } catch (e) {
     res.status(500).json({ error: e.message });

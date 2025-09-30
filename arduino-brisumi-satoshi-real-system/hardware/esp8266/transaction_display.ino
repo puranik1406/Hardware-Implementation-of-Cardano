@@ -8,9 +8,10 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-const char* WIFI_SSID = "Mohan's A26";
-const char* WIFI_PASS = "123456789"; // UPDATE: set this to your WiFi credentials
-const char* PC_HOST = "192.168.1.100"; // UPDATE: set this to your PC's LAN IP
+// UPDATE: set these before flashing
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASS = "YOUR_WIFI_PASSWORD"; 
+const char* PC_HOST = "192.168.0.100"; // Your PC LAN IP running Masumi Payment service
 String API_URL = String("http://") + PC_HOST + ":3001/api/latest-transaction";
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);

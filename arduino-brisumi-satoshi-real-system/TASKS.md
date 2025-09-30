@@ -11,24 +11,26 @@ Build a complete hardware-software ecosystem where:
 
 ## 📋 Task Breakdown
 
+Legend: [x] done · [ ] pending · [~] partial/in-progress
+
 ### Phase 1: Infrastructure Setup (2-3 hours)
 
 #### Task 1.1: Docker Environment Setup
-- [ ] Clone fresh Masumi services development quickstart
-- [ ] Verify Docker Compose is running all services:
-  - [ ] Masumi Registry Service (port 3000)
-  - [ ] Masumi Payment Service (port 3001) 
-  - [ ] Database (PostgreSQL/MongoDB)
-  - [ ] Redis for caching
+- [x] Containerized Payment, Cardano Integration, Agents, Postgres, Redis with healthchecks
+- [~] Verify Docker Compose is running all services
+  - [ ] Masumi Registry Service (port 3000) — optional, not required for this demo
+  - [x] Masumi Payment Service (port 3001)
+  - [x] Database (PostgreSQL)
+  - [x] Redis for caching
 - [ ] Test all API endpoints with Postman
-- [ ] Document all service URLs and ports
+- [x] Document all service URLs and ports
 
 #### Task 1.2: Cardano Integration (ADA on preprod)
-- [ ] Install Cardano SDK: `npm install lucid-cardano @blockfrost/blockfrost-js`
-- [ ] Configure Blockfrost for preprod network
-- [ ] Provide funded test wallet addresses in env (AGENT1 and AGENT2); keep signing key securely
-- [ ] Test ADA transfer (small amount) between AGENT1 → AGENT2
-- [ ] Document Cardano API integration points
+- [x] Install Cardano SDK (lucid-cardano) and Blockfrost
+- [x] Configure Blockfrost for preprod network
+- [x] Provide funded test wallet addresses in env (AGENT1 and AGENT2); keep signing key securely
+- [~] Test ADA transfer (small amount) between AGENT1 → AGENT2 (requires funding and AGENT1_SKEY_CBOR)
+- [x] Document Cardano API integration points
 
 #### Task 1.3: Hardware Preparation
 - [ ] Wire Arduino Uno (button on pin 2, LEDs on pins 11-13)
@@ -39,33 +41,33 @@ Build a complete hardware-software ecosystem where:
 
 ### Phase 2: Backend Services Development (4-5 hours)
 
-- [ ] Extend Masumi payment service to orchestrate Satoshi agents (Cardano-backed)
-- [ ] Add Cardano integration endpoints (served by Cardano Integration service; Masumi proxies/persists):
-  - [ ] `POST /api/cardano/transfer` - Agent-to-agent ADA transfer (via Masumi → Blockfrost → Cardano)
-  - [ ] `GET /api/cardano/balance/:address` - Get ADA balance for address
-  - [ ] `GET /api/cardano/transaction/:txId` - Get transaction details
-- [ ] Implement real ADA transaction processing (no mocks)
-- [ ] Add transaction hash tracking and storage
-- [ ] Create agent wallet management system (map Agent IDs to Cardano addresses; secure signing keys)
+- [x] Extend Masumi payment service to orchestrate Satoshi agents (Cardano-backed)
+- [x] Add Cardano integration endpoints (served by Cardano Integration service; Masumi proxies/persists):
+  - [x] `POST /api/cardano/transfer`
+  - [x] `GET /api/cardano/balance/:address`
+  - [x] `GET /api/cardano/transaction/:txId`
+- [x] Implement real ADA transaction processing (no mocks)
+- [x] Add transaction hash tracking and storage
+- [x] Create agent wallet management system (env-based mapping; secure signing keys)
 
-#### Task 2.2: Satoshi AI Agent Decision Engine
-- [ ] Create Satoshi AI agent service with two agents (Agent 1 and Agent 2):
+- #### Task 2.2: Satoshi AI Agent Decision Engine
+- [x] Create Satoshi AI agent service with two agents (Agent 1 and Agent 2):
   - [ ] Agent registration and management (Agent ID ↔ Cardano address)
-  - [ ] Agent 1 task (e.g., sensor/data validation or price check) before authorizing transfer
-  - [ ] Agent 2 task (e.g., acknowledgment/logging) after detecting receipt
+  - [x] Agent 1 task (simple rule; extendable)
+  - [x] Agent 2 task (acknowledgment hook)
   - [ ] Multi-factor decision matrix (market, risk, confidence)
-- [ ] Integrate with Masumi payment service for on-chain transfer
+- [x] Integrate with Masumi payment service for on-chain transfer
 - [ ] Add decision logging and analytics
 - [ ] Implement agent strategy patterns (conservative, aggressive)
 
 #### Task 2.3: Arduino Bridge Service
-- [ ] Create Node.js service for Arduino communication:
+- [x] Create Node.js service for Arduino communication:
   - [ ] Serial port connection management
   - [ ] Command parsing and routing
   - [ ] Real-time status broadcasting
   - [ ] Error handling and reconnection
-- [ ] WebSocket integration for real-time updates
-- [ ] Transaction trigger endpoint
+- [x] WebSocket integration for real-time updates
+- [x] Transaction trigger endpoint
 - [ ] Hardware status monitoring
 
 ### Phase 3: Frontend Development (3-4 hours)
@@ -76,9 +78,9 @@ Build a complete hardware-software ecosystem where:
   - [ ] Arduino/ESP8266 hardware status
   - [ ] Transaction history with blockchain verification
   - [ ] Agent decision analytics and charts
-- [ ] Use existing React setup from arduino-masumi-simulator
-- [ ] Add real-time WebSocket connections
-- [ ] Implement transaction hash verification links
+- [x] Use minimal dashboard with Socket.IO
+- [x] Add real-time WebSocket connections
+- [x] Implement transaction hash verification links
 
 #### Task 3.2: Mobile-Responsive Interface
 - [ ] Optimize dashboard for mobile viewing
@@ -123,10 +125,10 @@ void fetchAndDisplayTransaction() {
   }
 }
 ```
-- [ ] Remove all simulation code
-- [ ] Connect to real Masumi API endpoints
-- [ ] Display actual transaction hashes from blockchain
-- [ ] Add WiFi configuration and error handling
+- [x] Remove all simulation code
+- [x] Connect to real Masumi API endpoints
+- [x] Display actual transaction hashes from blockchain
+- [x] Add WiFi configuration and error handling
 
 ### Phase 5: Integration & Testing (3-4 hours)
 
@@ -136,7 +138,7 @@ void fetchAndDisplayTransaction() {
   - [ ] Satoshi Agent 2 reacts to receipt → logs/updates state via Masumi
   - [ ] ESP8266 → Masumi API → Real transaction hash
   - [ ] Web Dashboard → All services → Real-time updates
-- [ ] Test complete payment flow
+- [~] Test complete payment flow (pending funded wallet)
 - [ ] Verify blockchain transaction creation
 - [ ] Confirm hash display on ESP8266
 

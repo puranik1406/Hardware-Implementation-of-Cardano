@@ -14,26 +14,50 @@ app.use(express.json());
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, { cors: { origin: '*' } });
 
-const PORT = process.env.PORT || 5001;
-const SERIAL_PATH = process.env.SERIAL_PATH || ''; // e.g. COM3 on Windows
+const PORT = Number(process.env.PORT || 5001);
+const SERIAL_PATH = process.env.SERIAL_PATH || ''; // e.g. COM3 on Windows - Payment Trigger Arduino
 const SERIAL_BAUD = Number(process.env.SERIAL_BAUD || 9600);
+const DISPLAY_SERIAL_PATH = process.env.DISPLAY_SERIAL_PATH || ''; // e.g. COM4 - Transaction Display Arduino
+const DISPLAY_SERIAL_BAUD = Number(process.env.DISPLAY_SERIAL_BAUD || 9600);
 
 let port; let parser;
+let displayPort; let displayParser;
 
 async function connectSerial() {
+  // Connect to Payment Trigger Arduino
   if (!SERIAL_PATH) {
-    console.warn('No SERIAL_PATH set. Set env SERIAL_PATH=COM3 (Windows)');
-    return;
+    console.warn('No SERIAL_PATH set. On Windows set env SERIAL_PATH=COM3 (check Arduino IDE → Tools → Port).');
+  } else {
+    try {
+      port = new SerialPort({ path: SERIAL_PATH, baudRate: SERIAL_BAUD });
+      parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+      parser.on('data', onSerialLine);
+      port.on('error', (e) => io.emit('serial:error', { message: e.message }));
+      port.on('close', () => io.emit('serial:close', {}));
+      io.emit('serial:open', { path: SERIAL_PATH, baud: SERIAL_BAUD });
+      console.log(`Payment Trigger Arduino connected on ${SERIAL_PATH}`);
+    } catch (e) {
+      io.emit('serial:error', { message: e.message });
+      console.error('Payment Trigger Arduino connection failed:', e.message);
+    }
   }
-  try {
-    port = new SerialPort({ path: SERIAL_PATH, baudRate: SERIAL_BAUD });
-    parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
-    parser.on('data', onSerialLine);
-    port.on('error', (e) => io.emit('serial:error', { message: e.message }));
-    port.on('close', () => io.emit('serial:close', {}));
-    io.emit('serial:open', { path: SERIAL_PATH, baud: SERIAL_BAUD });
-  } catch (e) {
-    io.emit('serial:error', { message: e.message });
+
+  // Connect to Transaction Display Arduino
+  if (!DISPLAY_SERIAL_PATH) {
+    console.warn('No DISPLAY_SERIAL_PATH set. On Windows set env DISPLAY_SERIAL_PATH=COM4 for transaction display.');
+  } else {
+    try {
+      displayPort = new SerialPort({ path: DISPLAY_SERIAL_PATH, baudRate: DISPLAY_SERIAL_BAUD });
+      displayParser = displayPort.pipe(new ReadlineParser({ delimiter: '\n' }));
+      displayParser.on('data', onDisplaySerialLine);
+      displayPort.on('error', (e) => io.emit('display:error', { message: e.message }));
+      displayPort.on('close', () => io.emit('display:close', {}));
+      io.emit('display:open', { path: DISPLAY_SERIAL_PATH, baud: DISPLAY_SERIAL_BAUD });
+      console.log(`Transaction Display Arduino connected on ${DISPLAY_SERIAL_PATH}`);
+    } catch (e) {
+      io.emit('display:error', { message: e.message });
+      console.error('Transaction Display Arduino connection failed:', e.message);
+    }
   }
 }
 
@@ -54,7 +78,30 @@ function onSerialLine(lineRaw) {
   }
 }
 
-const state = { currentCommand: null };
+function onDisplaySerialLine(lineRaw) {
+  const line = lineRaw.trim();
+  io.emit('display:line', { line });
+  
+  // Handle requests from display Arduino
+  if (line === 'REQUEST_LATEST_TX') {
+    // Send latest transaction to display
+    if (state.lastTransaction) {
+      sendToDisplay(`TX:${state.lastTransaction}`);
+    } else {
+      sendToDisplay('STATUS:No transactions');
+    }
+  }
+}
+
+function sendToDisplay(message) {
+  if (displayPort && displayPort.writable) {
+    displayPort.write(`${message}\n`);
+    io.emit('display:sent', { message });
+    console.log(`Sent to display: ${message}`);
+  }
+}
+
+const state = { currentCommand: null, lastTransaction: null };
 
 async function triggerPayment(cmd) {
   io.emit('payment:trigger', cmd);
@@ -77,10 +124,22 @@ async function triggerPayment(cmd) {
     data = { error: err.message };
   }
   io.emit('payment:response', data);
-  // Optionally, write back to Arduino
+  
+  // Store the transaction hash for display purposes
+  const tx = data.tx_id || data.txHash || 'ERR';
+  state.lastTransaction = tx;
+  
+  // Send to Payment Trigger Arduino (original behavior)
   if (port && port.writable) {
-    const tx = data.tx_id || data.txHash || 'ERR';
     port.write(`TX:${tx}\n`);
+  }
+  
+  // Send to Transaction Display Arduino
+  if (data.error) {
+    sendToDisplay(`ERROR:${data.error.substring(0, 16)}`);
+  } else {
+    sendToDisplay(`TX:${tx}`);
+    sendToDisplay(`STATUS:Transaction sent`);
   }
 }
 
@@ -96,6 +155,21 @@ app.post('/simulate', async (req, res) => {
     };
     await triggerPayment(payload);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Convenience for browser testing: GET /simulate
+app.get('/simulate', async (_req, res) => {
+  try {
+    const payload = {
+      fromAgent: process.env.AGENT1_ID || 'satoshi-1',
+      toAgent: process.env.AGENT2_ID || 'satoshi-2',
+      amountAda: Number(process.env.SIM_AMOUNT || 1),
+    };
+    await triggerPayment(payload);
+    res.json({ ok: true, note: 'Triggered payment simulation via GET' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

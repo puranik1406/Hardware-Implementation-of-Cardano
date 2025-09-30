@@ -11,49 +11,81 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U masumi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
 
   masumi-payment:
     build: ./backend/masumi-services
+    env_file:
+      - ./env
     environment:
-      DATABASE_URL: postgresql://masumi:masumi@postgres:5432/masumi
-      REDIS_URL: redis://redis:6379
-      PORT: 3001
-      MASUMI_CARDANO_INTEGRATION_URL: http://cardano-integration:4002
-      AI_AGENTS_URL: http://ai-agents:6001
-      AGENT1_ID: ${AGENT1_ID}
-      AGENT1_ADDRESS: ${AGENT1_ADDRESS}
-      AGENT2_ID: ${AGENT2_ID}
-      AGENT2_ADDRESS: ${AGENT2_ADDRESS}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://masumi:masumi@postgres:5432/masumi}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      PORT: ${MASUMI_PORT:-3001}
+      MASUMI_CARDANO_INTEGRATION_URL: ${MASUMI_CARDANO_INTEGRATION_URL:-http://cardano-integration:4002}
+      AI_AGENTS_URL: ${AI_AGENTS_URL:-http://ai-agents:6001}
     depends_on:
-      - postgres
-      - redis
-      - cardano-integration
-      - ai-agents
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      cardano-integration:
+        condition: service_started
+      ai-agents:
+        condition: service_started
     ports:
-      - "3001:3001"
+      - "3001:${MASUMI_PORT:-3001}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${MASUMI_PORT:-3001}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   cardano-integration:
     build: ./backend/cardano-integration
+    env_file:
+      - ./env
     environment:
-      PORT: 4002
-      CARDANO_NETWORK: ${CARDANO_NETWORK}
-      BLOCKFROST_PROJECT_ID: ${BLOCKFROST_PROJECT_ID}
-      BLOCKFROST_BASE_URL: ${BLOCKFROST_BASE_URL}
-      AGENT1_SKEY_CBOR: ${AGENT1_SKEY_CBOR}
+      PORT: ${CARDANO_INTEGRATION_PORT:-4002}
     ports:
-      - "4002:4002"
+      - "4002:${CARDANO_INTEGRATION_PORT:-4002}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${CARDANO_INTEGRATION_PORT:-4002}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
   ai-agents:
     build: ./backend/ai-agents
+    env_file:
+      - ./env
     environment:
-      PORT: 6001
+      PORT: ${AI_AGENTS_PORT:-6001}
     ports:
-      - "6001:6001"
+      - "6001:${AI_AGENTS_PORT:-6001}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${AI_AGENTS_PORT:-6001}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
   pgdata:

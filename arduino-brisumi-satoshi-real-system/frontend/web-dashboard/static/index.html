@@ -23,11 +23,15 @@
       <pre id="tx"></pre>
       <div id="explorer"></div>
     </div>
+    <div class="card">
+      <h3>Wallet Balances (Preprod)</h3>
+      <pre id="balances">Loading...</pre>
+    </div>
   </div>
 
   <script type="module">
     import { io } from 'https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/+esm';
-    const serialEl = document.getElementById('serial');
+  const serialEl = document.getElementById('serial');
     const txEl = document.getElementById('tx');
     const BRIDGE_WS = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + (location.hostname || 'localhost') + ':5001';
     const socket = io(BRIDGE_WS);
@@ -42,6 +46,14 @@
         document.getElementById('explorer').innerHTML = `<a target="_blank" href="${url}">View on CardanoScan</a>`;
       }
     });
+    // Fetch balances from Masumi Payment service
+    try {
+      const r = await fetch('http://' + (location.hostname || 'localhost') + ':3001/api/wallets');
+      const j = await r.json();
+      document.getElementById('balances').textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+      document.getElementById('balances').textContent = 'Error fetching balances';
+    }
   </script>
 </body>
 </html>
