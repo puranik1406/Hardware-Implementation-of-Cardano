@@ -128,9 +128,21 @@ npm start
 http://localhost:8090
 ```
 
-## 🎥 **Demo Video**
+## 🎥 **Demo Videos**
 
-[Link to demo video showing button press → blockchain transaction]
+### 🏆 **Hackathon Day Demo**
+**Live Arduino-Cardano Integration System**
+[![Hackathon Demo](https://img.shields.io/badge/Watch-Hackathon%20Demo-red?logo=youtube)](https://youtu.be/UafLTltfD5o)
+
+Watch the complete system in action: Arduino button press → Real Cardano blockchain transaction → LCD display → Live dashboard monitoring.
+
+### 🚀 **Future Vision Demo**
+**Real-World Application Showcase**
+[![Future Vision](https://img.shields.io/badge/Watch-Future%20Vision-blue?logo=youtube)](https://youtu.be/tLkZvUDTP0s)
+
+A fun representation showcasing how this technology will be used in real-world scenarios - making blockchain transactions as simple as pressing a button!
+
+---
 
 ## 🏆 **Innovation Highlights**
 
