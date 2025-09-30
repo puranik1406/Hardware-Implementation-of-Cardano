@@ -17,8 +17,8 @@ if ([string]::IsNullOrWhiteSpace($cbor)) {
 
 # Build JSON body
 $body = [pscustomobject]@{
-  fromAgent = 'satoshi-1'
-  toAgent   = 'satoshi-2'
+  fromAgent = 'satoshi_alpha_001'
+  toAgent   = 'satoshi_beta_002'
   amountAda = 1
   skeyCbor  = $cbor
 }
