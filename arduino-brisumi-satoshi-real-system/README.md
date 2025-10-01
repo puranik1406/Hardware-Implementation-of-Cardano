@@ -16,15 +16,29 @@ This project demonstrates a complete **hardware-to-blockchain integration** wher
 
 ### 🏆 **Hackathon Day Demo**
 **Live Arduino-Cardano Integration System**
-[![Hackathon Demo](https://img.shields.io/badge/Watch-Hackathon%20Demo-red?logo=youtube)](https://youtu.be/UafLTltfD5o)
 
-Watch the complete system in action: Arduino button press → Real Cardano blockchain transaction → LCD display → Live dashboard monitoring.
+<div align="center">
+  <a href="https://youtu.be/UafLTltfD5o">
+    <img src="https://img.youtube.com/vi/UafLTltfD5o/maxresdefault.jpg" alt="Hackathon Demo" style="width:100%; max-width:800px;">
+  </a>
+  <p><em>Click to watch: Arduino button press → Real Cardano blockchain transaction → LCD display → Live dashboard monitoring</em></p>
+</div>
+
+**Watch on YouTube:** https://youtu.be/UafLTltfD5o
+
+---
 
 ### 🚀 **Future Vision Demo**
 **Real-World Application Showcase**
-[![Future Vision](https://img.shields.io/badge/Watch-Future%20Vision-blue?logo=youtube)](https://youtu.be/tLkZvUDTP0s)
 
-A fun representation showcasing how this technology will be used in real-world scenarios - making blockchain transactions as simple as pressing a button!
+<div align="center">
+  <a href="https://youtu.be/tLkZvUDTP0s">
+    <img src="https://img.youtube.com/vi/tLkZvUDTP0s/maxresdefault.jpg" alt="Future Vision Demo" style="width:100%; max-width:800px;">
+  </a>
+  <p><em>Click to watch: A fun representation showcasing how this technology will be used in real-world scenarios</em></p>
+</div>
+
+**Watch on YouTube:** https://youtu.be/tLkZvUDTP0s
 
 ---
 
