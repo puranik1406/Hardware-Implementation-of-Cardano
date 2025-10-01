@@ -54,16 +54,31 @@ app.get('/transaction/:txId', async (req, res) => {
   }
 });
 
-// Transfer ADA: requires sender signing key (file path or CBOR) and from/to/amount
+// Transfer ADA: requires sender signing key (mnemonic, file path or CBOR) and from/to/amount
 app.post('/transfer', async (req, res) => {
   try {
-    const { fromAddress, toAddress, amountLovelace, skeyCbor, skeyJsonPath, metadata } = req.body || {};
+    const { fromAddress, toAddress, amountLovelace, skeyCbor, skeyJsonPath, mnemonic, metadata } = req.body || {};
     console.log('[transfer] incoming', { fromAddress, toAddress, amountLovelace: Number(amountLovelace) });
     if (!fromAddress || !toAddress || !amountLovelace) return res.status(400).json({ error: 'fromAddress,toAddress,amountLovelace required' });
 
   const l = await getLucid();
     // Ensure provider time settings are initialized (prevents zeroTime undefined)
     try { await l.provider.getTimeSettings(); } catch {}
+    
+    // Try mnemonic first (most reliable)
+    const providedMnemonic = mnemonic || process.env.AGENT1_MNEMONIC || process.env.WALLET_MNEMONIC;
+    if (providedMnemonic) {
+      try {
+        l.selectWalletFromSeed(providedMnemonic.trim());
+        const wAddr = await l.wallet.address();
+        console.log('[transfer] wallet selected from mnemonic; derived address', wAddr);
+        // Continue to transaction below
+      } catch (e) {
+        console.error('[transfer] mnemonic failed', e);
+        return res.status(400).json({ error: `Invalid mnemonic: ${e?.message || e}` });
+      }
+    } else {
+      // Fall back to private key methods (legacy)
 
     // Load signing key
     function stripCbor(hex) {
@@ -82,7 +97,23 @@ app.post('/transfer', async (req, res) => {
   const providedKey = firstNonEmpty(skeyCbor, process.env.AGENT1_SKEY_CBOR);
     if (providedKey) {
       const raw = providedKey.toString().trim();
-      const candidates = [raw, stripCbor(raw)];
+      // Try multiple formats
+      const rawStripped = stripCbor(raw);
+     
+      // For simple ed25519 keys, we need to create a full extended key (32 bytes key + 32 bytes chaincode)
+      // If we only have 32 bytes, we'll pad with zeros for the chaincode
+      let extendedKey = rawStripped;
+      if (rawStripped.length === 64) {
+        // 32 bytes (64 hex chars) - need to extend to 64 bytes (128 hex chars) with chaincode
+        extendedKey = rawStripped + '0'.repeat(64); // Add 32 zero bytes as chaincode
+      }
+      
+      const candidates = [
+        raw,                              // Original (might have CBOR prefix)
+        rawStripped,                      // Stripped (just the 32-byte key)
+        extendedKey,                      // Extended with chaincode
+        `5840${extendedKey}`             // CBOR prefix for 64-byte extended key
+      ];
       let selected = false;
       for (const c of candidates) {
         try {
@@ -90,22 +121,24 @@ app.post('/transfer', async (req, res) => {
           // Smoke test: derive address, will throw if invalid
           // eslint-disable-next-line no-await-in-loop
           const wAddr = await l.wallet.address();
-          console.log('[transfer] wallet selected; derived address', wAddr);
+          console.log('[transfer] wallet selected; derived address', wAddr, 'using key format:', c.substring(0, 10) + '...');
           selected = true;
           break;
         } catch (e) {
-          console.warn('[transfer] key candidate failed, trying next', { err: e?.message || String(e) });
+          console.warn('[transfer] key candidate failed, trying next', { format: c.substring(0, 10), err: e?.message || String(e) });
         }
       }
       if (!selected) {
-        return res.status(400).json({ error: 'Failed to use provided signing key' });
+        console.error('[transfer] All key formats failed. Raw key:', raw.substring(0, 20) + '...', 'Stripped:', rawStripped.substring(0, 20) + '...', 'Extended:', extendedKey.substring(0, 20) + '...');
+        return res.status(400).json({ error: 'Failed to use provided signing key - tried multiple formats including extended key' });
       }
     } else if (skeyJsonPath) {
       // In container, mounting secrets file recommended; left as TODO to read
       return res.status(400).json({ error: 'skeyJsonPath reading not implemented in container' });
     } else {
-      return res.status(400).json({ error: 'No signing key provided' });
+      return res.status(400).json({ error: 'No signing key or mnemonic provided. Set AGENT1_MNEMONIC or AGENT1_SKEY_CBOR environment variable.' });
     }
+  } // End of else block for non-mnemonic
 
     // Validate derived wallet address matches the provided fromAddress (at least payment key hash)
     try {

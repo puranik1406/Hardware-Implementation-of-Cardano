@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -85,6 +83,43 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  emotion-ai:
+    build: ./backend/gemini-emotion-agent
+    env_file:
+      - ./env
+    environment:
+      PORT: ${GEMINI_SERVICE_PORT:-7002}
+      EMOTION_THRESHOLD: ${EMOTION_THRESHOLD:-50}
+    ports:
+      - "7002:${GEMINI_SERVICE_PORT:-7002}"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:${GEMINI_SERVICE_PORT:-7002}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  arduino-bridge:
+    build: ./backend/arduino-bridge
+    env_file:
+      - ./env
+    environment:
+      PORT: ${ARDUINO_BRIDGE_PORT:-5001}
+      EMOTION_AI_URL: http://emotion-ai:7002
+      MASUMI_PAYMENT_URL: http://masumi-payment:3001
+      CARDANO_INTEGRATION_URL: http://cardano-integration:4002
+    depends_on:
+      - emotion-ai
+      - masumi-payment
+      - cardano-integration
+    ports:
+      - "5001:${ARDUINO_BRIDGE_PORT:-5001}"
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"  # Linux
+      - "/dev/ttyACM0:/dev/ttyACM0"  # Linux alternative
+    privileged: true
     restart: unless-stopped
 
 volumes:
