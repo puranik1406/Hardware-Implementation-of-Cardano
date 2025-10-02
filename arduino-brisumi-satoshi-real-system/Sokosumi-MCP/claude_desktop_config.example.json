@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "sokosumi-hosted": {
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp",
+        "run",
+        "sse",
+        "https://mcp.sokosumi.com/mcp?api_key=YOUR_API_KEY_HERE&network=mainnet"
+      ]
+    },
+    "sokosumi-local": {
+      "command": "python",
+      "args": [
+        "C:/Users/dhwin/ActuAlte M1/arduino-brisumi-satoshi-real-system/Sokosumi-MCP/server.py"
+      ],
+      "env": {
+        "SOKOSUMI_API_KEY": "YOUR_API_KEY_HERE",
+        "SOKOSUMI_NETWORK": "mainnet"
+      }
+    }
+  }
+}
