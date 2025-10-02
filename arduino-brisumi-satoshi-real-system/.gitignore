@@ -106,3 +106,19 @@ Thumbs.db
 # CLAUDE DESKTOP CONFIG (USER-SPECIFIC)
 # ===================================
 claude_desktop_config.json
+
+# ===================================
+# ARDUINO - DEVELOPMENT/TEST FILES ONLY
+# ===================================
+# Exclude all test/development Arduino sketches
+hardware/arduino-uno/button_trigger.ino
+hardware/arduino-uno/lcd_display.ino
+hardware/arduino-uno/lcd_minimal_test.ino
+hardware/arduino-uno/payment_trigger_with_display.ino
+hardware/arduino-uno/plant_monitor_enhanced.ino
+hardware/arduino-uno/transaction_display_direct.ino
+hardware/arduino-uno/transaction_display_simple.ino
+
+# Keep only production files:
+# - payment_trigger.ino (COM6)
+# - transaction_display.ino (COM3)
