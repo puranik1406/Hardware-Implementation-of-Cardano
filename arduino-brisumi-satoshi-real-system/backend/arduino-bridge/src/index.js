@@ -112,6 +112,42 @@ async function connectSerial() {
 function onSerialLine(lineRaw) {
   const line = lineRaw.trim();
   io.emit('serial:line', { line });
+  
+  // NEW: Plant health data parsing
+  if (line === 'PLANT_HEALTH_DATA') {
+    state.inPlantDataMode = true;
+    state.plantData = { timestamp: new Date().toISOString() };
+    fileLog('[PLANT] Receiving plant health data...');
+    return;
+  } else if (state.inPlantDataMode) {
+    if (line === 'END_PLANT_DATA') {
+      state.inPlantDataMode = false;
+      fileLog(`[PLANT] Data complete: ${JSON.stringify(state.plantData)}`);
+      handlePlantHealthData(state.plantData).catch(err => 
+        fileLog(`[PLANT] Error processing: ${err.message}`)
+      );
+      return;
+    } else if (line.startsWith('PLANT_TYPE:')) {
+      state.plantData.plantType = line.replace('PLANT_TYPE:', '').trim();
+    } else if (line.startsWith('MOISTURE_RAW:')) {
+      state.plantData.moistureRaw = parseInt(line.replace('MOISTURE_RAW:', '').trim());
+    } else if (line.startsWith('MOISTURE_PERCENT:')) {
+      state.plantData.moisturePercent = parseInt(line.replace('MOISTURE_PERCENT:', '').trim());
+    } else if (line.startsWith('MOISTURE_THRESHOLD:')) {
+      state.plantData.moistureThreshold = line.replace('MOISTURE_THRESHOLD:', '').trim();
+    } else if (line.startsWith('TEMPERATURE:')) {
+      state.plantData.temperature = parseFloat(line.replace('TEMPERATURE:', '').trim());
+    } else if (line.startsWith('HUMIDITY:')) {
+      state.plantData.humidity = parseInt(line.replace('HUMIDITY:', '').trim());
+    } else if (line.startsWith('PLANT_STATUS:')) {
+      // Sent with payment trigger
+      const status = line.replace('PLANT_STATUS:', '').trim();
+      fileLog(`[PLANT] Status with payment: ${status}`);
+    }
+    return;
+  }
+  
+  // EXISTING: Payment trigger parsing (UNCHANGED)
   if (line === 'TRIGGER_PAYMENT') {
     state.currentCommand = { from: null, to: null, amount: null };
     state.emotionalContext = ''; // Reset emotional context
@@ -122,7 +158,7 @@ function onSerialLine(lineRaw) {
   } else if (line.startsWith('AMOUNT:')) {
     state.currentCommand.amount = Number(line.replace('AMOUNT:', '').trim());
   } else if (line.startsWith('EMOTION:')) {
-    // New: Capture emotional context from Arduino
+    // Capture emotional context from Arduino
     state.emotionalContext = line.replace('EMOTION:', '').trim();
     console.log(`Received emotional context: "${state.emotionalContext}"`);
   } else if (line === 'END_COMMAND') {
@@ -189,7 +225,13 @@ function sendToDisplay(message) {
   }
 }
 
-const state = { currentCommand: null, lastTransaction: null, emotionalContext: '' };
+const state = { 
+  currentCommand: null, 
+  lastTransaction: null, 
+  emotionalContext: '',
+  plantData: null,           // NEW: Store plant health data
+  inPlantDataMode: false     // NEW: Flag for parsing plant data
+};
 
 async function checkEmotionalApproval(text) {
   try {
@@ -325,6 +367,88 @@ async function triggerPayment(cmd) {
   }
 }
 
+// NEW: Plant Health Data Handler
+async function handlePlantHealthData(plantData) {
+  fileLog(`[PLANT] Processing health data for ${plantData.plantType}`);
+  
+  // Create report directory if it doesn't exist
+  const reportsDir = path.join(__dirname, '../../..', 'plant_reports');
+  if (!fs.existsSync(reportsDir)) {
+    fs.mkdirSync(reportsDir, { recursive: true });
+  }
+  
+  // Generate report
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T');
+  const dateStr = timestamp[0].replace(/-/g, '');
+  const timeStr = timestamp[1].split('-')[0].replace(/-/g, '');
+  const filename = `aloe_vera_report_${dateStr}_${timeStr}.txt`;
+  const filepath = path.join(reportsDir, filename);
+  
+  let report = '=' + '='.repeat(69) + '\n';
+  report += '🌱 ALOE VERA PLANT HEALTH REPORT\n';
+  report += '=' + '='.repeat(69) + '\n\n';
+  report += `Report Generated: ${new Date().toLocaleString()}\n`;
+  report += `Plant Type: ${plantData.plantType}\n`;
+  report += `Arduino Port: COM6\n\n`;
+  report += '-'.repeat(70) + '\n';
+  report += '📊 SENSOR READINGS\n';
+  report += '-'.repeat(70) + '\n\n';
+  
+  // Moisture Analysis
+  const moisture = plantData.moisturePercent;
+  report += `💧 Soil Moisture: ${moisture}%\n`;
+  if (moisture >= 60 && moisture <= 70) {
+    report += '   Status: ✓ OPTIMAL - Perfect for Aloe Vera\n';
+  } else if (moisture < 50) {
+    report += '   Status: ⚠ DRY - Water needed!\n';
+  } else if (moisture > 70) {
+    report += '   Status: ⚠ WET - Risk of overwatering\n';
+  } else {
+    report += '   Status: OK\n';
+  }
+  report += `   Raw ADC Reading: ${plantData.moistureRaw}/1023\n`;
+  report += `   Digital Threshold: ${plantData.moistureThreshold}\n\n`;
+  
+  // Temperature
+  report += `🌡️ Temperature: ${plantData.temperature}°C\n`;
+  if (plantData.temperature >= 18 && plantData.temperature <= 27) {
+    report += '   Status: ✓ IDEAL RANGE\n\n';
+  } else {
+    report += '   Status: ⚠ OUT OF RANGE\n\n';
+  }
+  
+  // Humidity
+  report += `💨 Humidity: ${plantData.humidity}%\n`;
+  if (plantData.humidity >= 40 && plantData.humidity <= 60) {
+    report += '   Status: ✓ GOOD\n\n';
+  } else {
+    report += '   Status: ⚠ MONITOR\n\n';
+  }
+  
+  report += '-'.repeat(70) + '\n';
+  report += '💡 RECOMMENDATIONS\n';
+  report += '-'.repeat(70) + '\n';
+  if (moisture < 60) {
+    report += '• Water the plant - soil is getting dry\n';
+  } else if (moisture > 70) {
+    report += '• Reduce watering - soil is too wet\n';
+  } else {
+    report += '• Continue current watering schedule\n';
+  }
+  
+  report += '\n' + '='.repeat(70) + '\n';
+  report += 'End of Report\n';
+  report += '='.repeat(70) + '\n';
+  
+  fs.writeFileSync(filepath, report);
+  fileLog(`[PLANT] ✓ Report saved: ${filepath}`);
+  
+  // Emit event
+  io.emit('plant:report', { plantData, filepath: filename });
+  
+  return { success: true, filepath: filename };
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Set emotional context for testing
@@ -361,6 +485,25 @@ app.get('/simulate', async (_req, res) => {
     res.json({ ok: true, note: 'Triggered payment simulation via GET' });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// NEW: Plant Health Monitoring Endpoint
+app.get('/plant-status', (_req, res) => {
+  res.json({ 
+    ok: true, 
+    lastPlantData: state.plantData,
+    message: 'Send REQUEST_PLANT_DATA via serial to Arduino to refresh' 
+  });
+});
+
+app.post('/request-plant-data', (_req, res) => {
+  if (port && port.isOpen && port.writable) {
+    port.write('REQUEST_PLANT_DATA\n');
+    fileLog('[PLANT] Requested data from Arduino');
+    res.json({ ok: true, message: 'Plant data requested from Arduino' });
+  } else {
+    res.status(503).json({ error: 'Arduino not connected' });
   }
 });
 

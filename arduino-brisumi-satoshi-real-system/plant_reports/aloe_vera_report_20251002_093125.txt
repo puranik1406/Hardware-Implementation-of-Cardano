@@ -1,0 +1,45 @@
+======================================================================
+🌱 ALOE VERA PLANT HEALTH REPORT
+======================================================================
+
+Report Generated: 2025-10-02 09:31:25
+Plant Type: Aloe Vera
+Plant ID: aloe_001
+Location: Indoor Garden - Arduino Station
+Arduino Port: COM6
+
+----------------------------------------------------------------------
+📊 SENSOR READINGS
+----------------------------------------------------------------------
+
+💧 Soil Moisture: 65%
+   Status: ✓ OPTIMAL - Perfect for Aloe Vera
+   Raw ADC Reading: 350/1023
+   Digital Threshold: OK
+
+🌡️ Temperature: 24.5°C
+   Status: ✓ IDEAL RANGE
+
+💨 Humidity: 55%
+   Status: ✓ GOOD
+
+☀️ Light Level: MEDIUM
+
+----------------------------------------------------------------------
+💡 RECOMMENDATIONS
+----------------------------------------------------------------------
+• Continue current watering schedule
+
+----------------------------------------------------------------------
+🌵 ALOE VERA CARE GUIDE
+----------------------------------------------------------------------
+• Watering: Once every 2-3 weeks (when soil is dry)
+• Light: Bright, indirect sunlight (6-8 hours/day)
+• Temperature: 18-27°C (ideal range)
+• Soil: Well-draining succulent/cactus mix
+• Humidity: 40-60% (tolerates dry air)
+• Fertilizer: Monthly during growing season (spring/summer)
+
+======================================================================
+End of Report
+======================================================================
