@@ -1,157 +1,118 @@
-// Arduino Uno – Transaction Display
-// I2C LCD 16x2 on A4 (SDA) A5 (SCL)
-// Ethernet shield or USB communication for transaction polling
-
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include <hd44780.h>
+#include <hd44780ioClass/hd44780_I2Cexp.h>  // auto-detect PCF8574 mapping
 
-// LCD Configuration
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+hd44780_I2Cexp lcd;
 
-// Transaction polling configuration
-unsigned long lastPollTime = 0;
-const unsigned long POLL_INTERVAL = 3000; // Poll every 3 seconds
-String lastTxHash = "";
+unsigned long lastPoll = 0;
+const unsigned long POLL_MS = 3000;
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(9600);
-  
-  // Initialize I2C LCD (Arduino Uno: SDA=A4, SCL=A5)
-  Wire.begin();
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-  
-  // Display startup message
-  lcd.setCursor(0, 0);
-  lcd.print("Cardano Display");
-  lcd.setCursor(0, 1);
-  lcd.print("Waiting for TX...");
-  
-  Serial.println("Arduino Transaction Display Ready");
-  Serial.println("Waiting for transaction data...");
-  
-  delay(2000);
-}
-
-void loop() {
-  // Check for incoming serial data (transaction hash from PC/Arduino Bridge)
-  if (Serial.available()) {
-    String incomingData = Serial.readStringUntil('\n');
-    incomingData.trim();
-    
-    if (incomingData.startsWith("TX:")) {
-      String txHash = incomingData.substring(3); // Remove "TX:" prefix
-      displayTransaction(txHash);
-      lastTxHash = txHash;
-    }
-    else if (incomingData.startsWith("STATUS:")) {
-      String status = incomingData.substring(7); // Remove "STATUS:" prefix
-      displayStatus(status);
-    }
-    else if (incomingData.startsWith("ERROR:")) {
-      String error = incomingData.substring(6); // Remove "ERROR:" prefix
-      displayError(error);
-    }
-    else if (incomingData == "CLEAR") {
-      clearDisplay();
-    }
-  }
-  
-  // Periodic polling mode (if no direct communication)
-  if (millis() - lastPollTime > POLL_INTERVAL) {
-    lastPollTime = millis();
-    requestLatestTransaction();
-  }
-  
+  Serial.setTimeout(50);
   delay(100);
-}
 
-void displayTransaction(const String &txHash) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("New Transaction:");
-  lcd.setCursor(0, 1);
-  
-  if (txHash.length() <= 16) {
-    lcd.print(txHash);
-  } else {
-    // Display first 13 chars + "..."
-    lcd.print(txHash.substring(0, 13) + "...");
+  Wire.begin();              // UNO: SDA=A4, SCL=A5
+  Wire.setClock(100000);
+
+  int status = lcd.begin(16, 2);  // non-zero on error
+  if (status) {
+    Serial.print("LCD_ERROR: begin()="); Serial.println(status);
+    // Blink LED to indicate init failure
+    for (;;) { digitalWrite(LED_BUILTIN, HIGH); delay(250);
+               digitalWrite(LED_BUILTIN, LOW);  delay(250); }
   }
-  
-  Serial.println("Displayed TX: " + txHash);
-}
 
-void displayStatus(const String &status) {
+  // Initial screen (same reliable init flow as your working sketch)
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Status:");
-  lcd.setCursor(0, 1);
-  
-  if (status.length() <= 16) {
-    lcd.print(status);
-  } else {
-    lcd.print(status.substring(0, 16));
-  }
-  
-  Serial.println("Status: " + status);
-}
-
-void displayError(const String &error) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("ERROR:");
-  lcd.setCursor(0, 1);
-  
-  if (error.length() <= 16) {
-    lcd.print(error);
-  } else {
-    lcd.print(error.substring(0, 16));
-  }
-  
-  Serial.println("Error: " + error);
-  
-  // Flash display for error indication
-  for (int i = 0; i < 3; i++) {
-    lcd.noBacklight();
-    delay(200);
-    lcd.backlight();
-    delay(200);
-  }
-}
-
-void clearDisplay() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Cardano Display");
-  lcd.setCursor(0, 1);
-  lcd.print("Ready...");
-  
-  Serial.println("Display cleared");
-}
-
-void requestLatestTransaction() {
-  // Send request to PC/Arduino Bridge for latest transaction
+  lcd.setCursor(0, 0); lcd.print("Cardano Display");
+  lcd.setCursor(0, 1); lcd.print("Waiting for TX...");
+  Serial.println("[LCD] READY");
+  // Handshake with Arduino Bridge
+  Serial.println("HELLO_DISPLAY");
   Serial.println("REQUEST_LATEST_TX");
 }
 
-// Optional: Display connection status
-void displayConnectionStatus(bool connected) {
-  if (!connected) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Connection Lost");
-    lcd.setCursor(0, 1);
-    lcd.print("Reconnecting...");
+void loop() {
+  // Read newline-terminated messages from the bridge
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.length()) {
+      Serial.print("[LCD] RX: "); Serial.println(line);
+      handleLine(line);
+    }
+  }
+
+  // Periodic re-sync (bridge should answer with last TX/status)
+  if (millis() - lastPoll >= POLL_MS) {
+    lastPoll = millis();
+    Serial.println("REQUEST_LATEST_TX");
+  }
+
+  // Heartbeat indicator
+  static unsigned long t=0; static bool on=false;
+  if (millis()-t > 600) {
+    t = millis(); on = !on;
+    lcd.setCursor(15, 1); lcd.print(on ? "*" : " ");
   }
 }
 
-// Optional: Display wallet balance
-void displayBalance(const String &balance) {
+void handleLine(const String& line) {
+  if (line.startsWith("TX:")) {
+    showTx(line.substring(3));
+  } else if (line.startsWith("STATUS:")) {
+    showStatus(line.substring(7));
+  } else if (line.startsWith("ERROR:")) {
+    showError(line.substring(6));
+  } else if (line == "CLEAR") {
+    showReady();
+  } else if (line == "TEST") {
+    lcd.clear();
+    lcd.setCursor(0,0); lcd.print("HELLO CARDANO!");
+    lcd.setCursor(0,1); lcd.print("I2C LCD (auto)");
+  }
+}
+
+void showTx(const String& hash) {
   lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Balance:");
-  lcd.setCursor(0, 1);
-  lcd.print(balance + " ADA");
+  lcd.setCursor(0, 0); lcd.print("TX Confirmed!");
+  // If hash fits, show directly; else scroll it so full hash is visible
+  if (hash.length() <= 16) {
+    lcd.setCursor(0, 1); lcd.print(hash);
+  } else {
+    // Non-fancy marquee for reliability
+    for (int i = 0; i <= hash.length() - 16; i++) {
+      lcd.setCursor(0, 1);
+      lcd.print(hash.substring(i, i + 16));
+      delay(200);
+    }
+    // Leave first 13 chars + ... at the end
+    lcd.setCursor(0, 1);
+    lcd.print(hash.substring(0, 13)); lcd.print("...");
+  }
+  Serial.print("[LCD] Displayed TX: ");
+  Serial.println(hash);
+}
+
+void showStatus(const String& s) {
+  lcd.clear();
+  lcd.setCursor(0,0); lcd.print("Status:");
+  lcd.setCursor(0,1); lcd.print(s.substring(0,16));
+  Serial.print("[LCD] STATUS: "); Serial.println(s);
+}
+
+void showError(const String& e) {
+  lcd.clear();
+  lcd.setCursor(0,0); lcd.print("ERROR:");
+  lcd.setCursor(0,1); lcd.print(e.substring(0,16));
+  Serial.print("[LCD] ERROR: "); Serial.println(e);
+}
+
+void showReady() {
+  lcd.clear();
+  lcd.setCursor(0,0); lcd.print("Cardano Display");
+  lcd.setCursor(0,1); lcd.print("Ready...");
+  Serial.println("[LCD] READY screen");
 }
